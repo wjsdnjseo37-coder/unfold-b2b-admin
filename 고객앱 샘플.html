@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unfold: Final Service with Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* 기존 디자인 스타일 완전 유지 */
+        body { font-family: 'Pretendard', sans-serif; background-color: #F1F5F9; margin: 0; padding: 0; overflow: hidden; touch-action: manipulation; }
+        
+        .mobile-frame {
+            max-width: 420px; height: 100vh; margin: 0 auto; background-color: #ffffff;
+            position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-nav { 
+            height: 65px; background: white; border-bottom: 1px solid #E2E8F0; 
+            display: flex; justify-content: space-between; align-items: center; 
+            z-index: 50; flex-shrink: 0; padding: 0 10px;
+        }
+        .nav-item { 
+            flex: 1; height: 100%; border: none; background: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            color: #94A3B8; font-size: 10px; font-weight: 500; cursor: pointer; 
+            -webkit-tap-highlight-color: transparent; gap: 4px;
+        }
+        .nav-item i { font-size: 18px; margin-bottom: 2px; }
+        .nav-item.active { color: #10B981; font-weight: 800; }
+
+        .content-area { flex: 1; overflow-y: auto; position: relative; background-color: #F8FAFC; scroll-behavior: smooth; }
+        .content-area::-webkit-scrollbar { display: none; }
+
+        .case-status-btn {
+            background-color: #1e293b; color: white; padding: 8px 16px; border-radius: 50px;
+            font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute; top: 20px; left: 20px; z-index: 40; cursor: pointer;
+            opacity: 1; transform: translateY(0);
+        }
+        .case-status-btn.hidden-btn { opacity: 0; transform: translateY(-20px); pointer-events: none; }
+        
+        .screen { display: none; min-height: 100%; width: 100%; flex-direction: column; }
+        .screen.active { display: flex; animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .chat-bubble { max-width: 75%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; margin-bottom: 10px; word-break: break-all; }
+        .chat-me { background-color: #10B981; color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 5px rgba(16, 185, 129, 0.2); }
+        .chat-you { background-color: white; color: #334155; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid #E2E8F0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .chat-ai { background-color: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; align-self: flex-start; border-bottom-left-radius: 4px; }
+
+        .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 999; justify-content: center; align-items: center; animation: fadeIn 0.3s forwards; backdrop-filter: blur(2px); }
+        .modal-content { 
+            background: white; width: 280px;
+            border-radius: 24px; padding: 0; transform: scale(0.8); opacity: 0; 
+            animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 0.1s; 
+            overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); 
+        }
+        @keyframes popUp { to { transform: scale(1); opacity: 1; } }
+        
+        .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #10B981; box-shadow: 0 0 20px 2px #10B981; animation: scan 2s infinite ease-in-out; }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        
+        .toast {
+            position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+            background-color: rgba(15, 23, 42, 0.95); color: white;
+            padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 600;
+            display: none; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; white-space: nowrap;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        @keyframes slideUp { from { bottom: 70px; opacity: 0; transform: translateX(-50%) scale(0.9); } to { bottom: 90px; opacity: 1; transform: translateX(-50%) scale(1); } }
+
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #10B981; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .vote-bar { transition: width 0.5s ease-out; }
+        .write-btn {
+            position: absolute; bottom: 20px; right: 20px;
+            width: 56px; height: 56px; background-color: #1e293b; color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(30, 41, 59, 0.3); z-index: 40;
+            transition: transform 0.2s; cursor: pointer;
+        }
+        .write-btn:active { transform: scale(0.9); }
+    </style>
+</head>
+<body>
+
+<div class="mobile-frame">
+
+    <!-- top nav already present above mobile frame - keep as visual duplicate for quick access on desktop preview -->
+
+
+    <div class="top-nav">
+        <button onclick="switchTab('home')" class="nav-item active" id="nav-home">
+            <i class="fas fa-home"></i><span>홈</span>
+        </button>
+        <button onclick="switchTab('case')" class="nav-item" id="nav-case">
+            <i class="fas fa-folder-open"></i><span>내 사건</span>
+        </button>
+        <button onclick="switchTab('expert')" class="nav-item" id="nav-expert">
+            <i class="fas fa-user-tie"></i><span>전문가</span>
+        </button>
+        <button onclick="switchTab('community')" class="nav-item" id="nav-community">
+            <i class="fas fa-comments"></i><span>고민상담</span>
+        </button>
+        <button onclick="switchTab('menu')" class="nav-item" id="nav-menu">
+            <i class="fas fa-bars"></i><span>메뉴</span>
+        </button>
+    </div>
+
+    <div class="content-area" id="main-content">
+
+        <button id="vip-btn" onclick="goToCase()" class="case-status-btn">
+            <i class="fas fa-briefcase text-amber-400"></i><span>진행 중인 사건</span>
+            <div class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900 animate-pulse"></div>
+        </button>
+
+        <div id="toast-msg" class="toast"><i class="fas fa-check-circle mr-2 text-emerald-400"></i><span id="toast-text">알림</span></div>
+
+        <div id="coupon-popup" class="modal-overlay">
+            <div class="modal-content">
+                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 text-center relative overflow-hidden">
+                    <p class="text-blue-100 text-[10px] font-bold mb-1 tracking-wider">PARTNER BENEFIT</p>
+                    <h3 class="text-white text-lg font-extrabold mb-1">이사 준비하세요?</h3>
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl mx-auto shadow-lg my-1">🚚</div>
+                </div>
+                <div class="p-4 text-center">
+                    <p class="text-slate-600 text-xs mb-3">이삿짐 센터 <span class="font-bold text-slate-800">5만원 할인</span></p>
+                    <div class="border-2 border-dashed border-slate-200 bg-slate-50 p-2 rounded-lg mb-3 cursor-pointer hover:bg-slate-100 transition" onclick="copyCoupon()">
+                        <p class="text-[10px] text-slate-400">터치하여 복사</p>
+                        <p class="text-sm font-bold text-indigo-600 tracking-widest mt-0.5">MOVE-2026</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closePopup()" class="flex-1 py-2 rounded-lg bg-slate-100 text-slate-500 font-bold text-xs hover:bg-slate-200">닫기</button>
+                        <button onclick="saveCoupon()" class="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-md hover:bg-indigo-700">받기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-home" class="screen active pt-20 px-6">
+            <div class="mt-4 mb-4">
+                <p class="text-slate-400 text-lg font-medium">무엇이 걱정되시나요?</p>
+                <h1 class="text-3xl font-extrabold text-slate-800 leading-tight mt-1">고민하지 말고<br>그냥 <span class="text-emerald-500">찍으세요.</span></h1>
+            </div>
+            <div class="flex-1 flex flex-col justify-start mt-6 mb-4">
+                <div onclick="startUniversalScan()" class="relative bg-white rounded-[32px] p-8 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-emerald-50 text-center cursor-pointer group active:scale-95 transition-all duration-300 overflow-hidden h-[300px] flex flex-col justify-center items-center hover:border-emerald-200">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 via-emerald-400 to-orange-400 opacity-80"></div>
+                    <div class="w-28 h-28 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mb-6 shadow-xl shadow-emerald-200/50 group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-camera text-4xl text-white drop-shadow-md"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">AI 자동 진단</h2>
+                    <p class="text-slate-500 text-sm font-medium">계약서, 영수증, 카톡 대화...<br><span class="font-bold text-emerald-600">AI가 알아서 파악합니다.</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-scan" class="screen bg-slate-900 justify-center items-center relative h-full">
+            <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80" class="absolute w-full h-full object-cover opacity-30" alt="document bg">
+            <div class="scanner-line z-10"></div>
+            <div class="z-20 text-center w-full px-8 flex flex-col items-center">
+                <div class="spinner mb-8"></div>
+                <h2 id="scan-title" class="text-2xl font-bold text-white mb-4 transition-all duration-500">대상 인식 중...</h2>
+                <div class="bg-black/60 backdrop-blur-md rounded-full px-5 py-2 border border-white/10 inline-block min-w-[200px]">
+                    <p id="scan-detail" class="text-emerald-400 font-mono text-sm"><i class="fas fa-search mr-2 animate-pulse"></i><span>객체 분석 중...</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-result" class="screen bg-slate-50 h-full flex flex-col">
+            <div class="bg-white px-8 pb-6 pt-10 rounded-b-[30px] shadow-sm z-10 shrink-0 text-center relative">
+                <button onclick="goToHome()" class="absolute top-6 left-6 text-slate-300 hover:text-slate-800 p-2"><i class="fas fa-times text-xl"></i></button>
+                <div class="inline-block bg-red-50 text-red-500 px-4 py-1.5 rounded-full text-sm font-bold mb-4 border border-red-100 animate-bounce"><i class="fas fa-exclamation-triangle mr-2"></i>위험 감지</div>
+                <h1 class="text-2xl font-bold text-slate-800 mb-2">계약금 떼일 수 있어요</h1>
+                <p class="text-slate-500 text-sm">특약 조항 2건이 세입자에게 불리합니다.</p>
+            </div>
+            
+            <div class="px-6 py-6 flex-1 overflow-y-auto">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-4">
+                    <h3 class="text-slate-400 text-[10px] font-bold uppercase mb-4 tracking-widest">FACT CHECK</h3>
+                    <div class="flex gap-4 items-start mb-6 pb-4 border-b border-slate-50 last:border-0 last:mb-0 last:pb-0">
+                        <div class="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-times"></i></div>
+                        <div><p class="font-bold text-slate-700 mb-1">원상복구 의무 모호</p><p class="text-xs text-slate-400 leading-relaxed">"퇴거 시 원상복구" 조항은 벽지 변색 등 자연 마모까지 청구될 위험이 큽니다.</p></div>
+                    </div>
+                    <div class="flex gap-4 items-start">
+                        <div class="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-times"></i></div>
+                        <div><p class="font-bold text-slate-700 mb-1">특약 사항 누락</p><p class="text-xs text-slate-400 leading-relaxed">"잔금일 전 근저당권 말소" 조항이 없습니다.</p></div>
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 p-6 rounded-3xl shadow-inner border border-emerald-100 mb-4">
+                    <h3 class="text-emerald-600 text-[10px] font-bold uppercase mb-4 tracking-widest"><i class="fas fa-robot mr-1"></i> AI SOLUTION</h3>
+                    
+                    <div class="bg-white rounded-xl p-4 mb-3 border border-emerald-100">
+                        <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-slate-700">1. 특약 수정 요청하기</span><span class="bg-emerald-100 text-emerald-600 text-[10px] px-2 py-0.5 rounded font-bold">Recommended</span></div>
+                        <p class="text-xs text-slate-500 mb-3 leading-relaxed">임대인에게 보낼 정중하고 명확한 수정 요청 메시지를 AI가 작성했습니다.</p>
+                        <button onclick="selfTreat()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
+                            <i class="fas fa-copy"></i> <span>요청 텍스트 복사</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-4 border border-emerald-100 mb-3">
+                         <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-slate-700">2. 표준 계약서 다운로드</span></div>
+                        <p class="text-xs text-slate-500 mb-0 leading-relaxed">법무부 권장 주택임대차표준계약서 양식을 확인하세요.</p>
+                    </div>
+
+                     <div onclick="openContractAiChat()" class="bg-white rounded-xl p-4 border border-emerald-200 cursor-pointer hover:bg-emerald-50 transition-colors flex items-center justify-between shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white shadow-md"><i class="fas fa-comment-dots"></i></div>
+                            <div>
+                                <script src="nav.js"></script>
+                                <script src="app.js"></script>
+                                <p class="text-[10px] text-slate-400">"특약 조항이 법적으로 유효한가요?"</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-emerald-300"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 bg-white border-t border-slate-100 shrink-0 z-20">
+                <p class="text-center text-slate-800 font-bold mb-3 text-sm">전문가의 도움이 필요하신가요?</p>
+                <div class="flex gap-3">
+                    <button onclick="goToRecommendation()" class="w-full py-3.5 rounded-2xl bg-slate-800 text-white font-bold shadow-lg hover:bg-slate-900 text-xs transition-transform active:scale-95 flex items-center justify-center gap-2">
+                        <span><i class="fas fa-user-shield mr-1"></i> Top 5 변호사 매칭받기</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-case" class="screen pt-24 px-0 bg-slate-50 h-full"> 
+            <div class="px-6 mb-6"><h2 class="text-2xl font-bold text-slate-800">나의 사건 관리</h2></div>
+            
+            <div class="mx-6 bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-bold">진행중</div>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 rounded-full border-2 border-slate-100 p-0.5 overflow-hidden"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?fit=crop&w=200&h=200" class="w-full h-full object-cover"></div>
+                    <div><p class="text-xs text-slate-400 font-medium">담당 파트너</p><p class="font-bold text-slate-800">김철수 변호사</p></div>
+                    <button onclick="startChat('EXPERT', 0, 'case')" class="ml-auto bg-slate-50 text-slate-600 w-10 h-10 rounded-full flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><i class="fas fa-comment-dots"></i></button>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">2023가단 54xx 전세금 반환</h3>
+                <div class="mt-4">
+                    <div class="flex justify-between text-[11px] font-bold text-slate-300 mb-2 tracking-tight"><span class="text-emerald-600">내용증명</span><span class="text-emerald-600">소장접수</span><span class="text-emerald-600">변론기일</span><span>판결</span></div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden mb-2"><div class="h-full bg-emerald-500 rounded-full relative" style="width: 75%"><div class="absolute right-0 top-0 bottom-0 w-2 bg-white/30 animate-pulse"></div></div></div>
+                    <p class="text-right text-xs text-emerald-600 font-bold">75% 진행중</p>
+                </div>
+            </div>
+
+            <div class="mx-6 mb-6">
+                <div class="flex justify-between items-end mb-2">
+                    <h3 class="font-bold text-slate-800 text-sm">전담 AI 변호사</h3>
+                    <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">내 사건 학습 완료</span>
+                </div>
+                <div onclick="openCaseAiChat()" class="bg-slate-800 p-4 rounded-2xl shadow-lg cursor-pointer active:scale-95 transition-transform flex items-center justify-between border border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white"><i class="fas fa-gavel"></i></div>
+                        <div><p class="text-white font-bold text-sm">사건 전담 AI와 대화하기</p><p class="text-slate-400 text-[10px]">"제 사건 진행상황과 승소율 알려줘"</p></div>
+                    </div>
+                    <i class="fas fa-chevron-right text-white/50"></i>
+                </div>
+            </div>
+
+            <div class="mx-6 pb-24">
+                <h3 class="font-bold text-slate-800 text-sm mb-3">증거 서류 관리</h3>
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                    <div id="evidence-list" class="space-y-3 mb-4">
+                        <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                            <div class="w-8 h-8 bg-red-50 text-red-500 rounded flex items-center justify-center text-xs"><i class="fas fa-file-pdf"></i></div>
+                            <div class="flex-1"><p class="text-xs font-bold text-slate-700">임대차계약서.pdf</p><p class="text-[10px] text-slate-400">2023.09.20 업로드</p></div>
+                            <i class="fas fa-check-circle text-emerald-500 text-xs"></i>
+                        </div>
+                    </div>
+                    <button onclick="uploadEvidence()" class="w-full py-3 border border-dashed border-slate-300 rounded-xl text-slate-400 text-xs font-bold hover:bg-slate-50 hover:border-slate-400 transition-colors flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i> 자료 추가 (사진/문서)
+                    </button>
+                    <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(this)">
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-expert" class="screen h-full">
+            <div class="pt-20 px-6 flex flex-col h-full overflow-y-auto">
+                <div class="mb-4 flex-shrink-0">
+                    <h2 class="text-2xl font-bold text-slate-800">분야별 전문가</h2>
+                    <p class="text-sm text-slate-500">Unfold가 보증하는 Top-Tier입니다.</p>
+                </div>
+                <div class="flex gap-2 overflow-x-auto hide-scrollbar mb-4 pb-2 flex-shrink-0">
+                    <button onclick="filterExperts('전체')" class="filter-btn active px-4 py-2 bg-slate-100 text-slate-500 rounded-full text-xs font-bold transition whitespace-nowrap" data-cat="전체">전체</button>
+                    <button onclick="filterExperts('형사')" class="filter-btn px-4 py-2 bg-slate-100 text-slate-500 rounded-full text-xs font-bold transition whitespace-nowrap" data-cat="형사">⚖️ 형사</button>
+                    <button onclick="filterExperts('이혼')" class="filter-btn px-4 py-2 bg-slate-100 text-slate-500 rounded-full text-xs font-bold transition whitespace-nowrap" data-cat="이혼">💔 이혼</button>
+                    <button onclick="filterExperts('부동산')" class="filter-btn px-4 py-2 bg-slate-100 text-slate-500 rounded-full text-xs font-bold transition whitespace-nowrap" data-cat="부동산">🏠 부동산</button>
+                </div>
+                <div id="expert-list-area" class="space-y-3 pb-24 flex-1"></div>
+            </div>
+        </div>
+
+        <div id="screen-community" class="screen h-full bg-slate-50">
+            <div class="pt-6 pb-2 px-6 bg-white sticky top-0 z-10 border-b border-slate-100 shadow-sm flex items-end justify-between" style="height: 90px;">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">고민상담</h2>
+                    <p class="text-xs text-slate-500">법률 고민, 익명으로 다수에게 물어보세요!</p>
+                </div>
+                <button class="text-emerald-600 font-bold text-sm"><i class="fas fa-bell"></i></button>
+            </div>
+            
+            <div id="community-feed" class="p-4 space-y-4 overflow-y-auto pb-24 flex-1">
+                </div>
+
+            <button onclick="showToast('글쓰기 기능은 준비 중입니다.')" class="write-btn">
+                <i class="fas fa-pen text-lg"></i>
+            </button>
+        </div>
+
+        <div id="screen-recommendation" class="screen h-full">
+            <div class="pt-20 px-6 flex flex-col h-full overflow-y-auto">
+                <div class="mb-6 flex justify-between items-end flex-shrink-0">
+                    <div><h2 class="text-2xl font-bold text-slate-800">AI 추천 전문가</h2><p class="text-sm text-slate-500">해당 분야 상위 <span class="text-emerald-600 font-bold">5명</span>입니다.</p></div>
+                    <button onclick="goToHome()" class="text-slate-400 text-sm hover:text-slate-800 font-bold">닫기</button>
+                </div>
+                <div class="space-y-3 pb-8 flex-1" id="rec-list-container"></div>
+            </div>
+        </div>
+
+        <div id="screen-menu" class="screen h-full">
+            <div class="pt-20 px-0 flex flex-col h-full overflow-y-auto">
+                <div class="bg-white p-6 mb-4 shadow-sm">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl shadow-inner">😎</div>
+                        <div><h2 class="text-xl font-bold text-slate-800">김대표님</h2><p class="text-xs text-slate-400 font-medium">Unfold Basic 회원</p></div>
+                    </div>
+                    <button onclick="showToast('결제가 완료되었습니다. 프리미엄 회원으로 전환됩니다.')" class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">멤버십 업그레이드</button>
+                </div>
+                <div class="bg-white p-4">
+                     <div onclick="goToSubMenu('coupons')" class="py-4 border-b border-slate-50 flex justify-between items-center text-slate-600 text-sm font-medium cursor-pointer hover:bg-slate-50 px-2 rounded"><span>🎫 내 쿠폰함</span><i class="fas fa-chevron-right text-slate-300"></i></div>
+                     <div onclick="goToSubMenu('payment')" class="py-4 border-b border-slate-50 flex justify-between items-center text-slate-600 text-sm font-medium cursor-pointer hover:bg-slate-50 px-2 rounded"><span>💳 결제 관리</span><i class="fas fa-chevron-right text-slate-300"></i></div>
+                     <div onclick="goToSubMenu('settings')" class="py-4 flex justify-between items-center text-slate-600 text-sm font-medium cursor-pointer hover:bg-slate-50 px-2 rounded"><span>⚙️ 설정</span><i class="fas fa-chevron-right text-slate-300"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-coupons" class="screen h-full">
+            <div class="pt-20 px-6 flex flex-col h-full overflow-y-auto">
+                <div class="mb-6 flex justify-between items-end"><h2 class="text-2xl font-bold text-slate-800">내 쿠폰함</h2><button onclick="backToMenu()" class="text-slate-400 text-sm font-bold">뒤로</button></div>
+                <div id="coupon-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <div id="screen-payment" class="screen h-full">
+            <div class="pt-20 px-6 flex flex-col h-full overflow-y-auto">
+                <div class="mb-6 flex justify-between items-end"><h2 class="text-2xl font-bold text-slate-800">결제 관리</h2><button onclick="backToMenu()" class="text-slate-400 text-sm font-bold">뒤로</button></div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4">
+                    <div class="flex justify-between mb-2"><span class="text-sm text-slate-500">다음 결제일</span><span class="text-sm font-bold text-slate-800">2023. 11. 25</span></div>
+                    <div class="flex justify-between items-center"><span class="text-lg font-bold text-slate-800">Unfold Premium</span><span class="text-emerald-600 font-bold">4,900원</span></div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200"><h3 class="text-xs text-slate-400 font-bold mb-3">결제 수단</h3><div class="flex items-center gap-3"><div class="w-8 h-5 bg-yellow-400 rounded"></div><span class="text-sm text-slate-700">카카오페이</span><button class="ml-auto text-xs text-slate-400 underline">변경</button></div></div>
+            </div>
+        </div>
+
+        <div id="screen-settings" class="screen h-full">
+             <div class="pt-20 px-6 flex flex-col h-full overflow-y-auto">
+                 <div class="mb-6 flex justify-between items-end"><h2 class="text-2xl font-bold text-slate-800">설정</h2><button onclick="backToMenu()" class="text-slate-400 text-sm font-bold">뒤로</button></div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-50 flex justify-between items-center"><span class="text-sm text-slate-700">알림 설정</span><div class="w-10 h-6 bg-emerald-500 rounded-full relative"><div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div></div>
+                    <div class="p-4 border-b border-slate-50 flex justify-between items-center"><span class="text-sm text-slate-700">생체 인증 사용</span><div class="w-10 h-6 bg-slate-200 rounded-full relative"><div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div></div></div>
+                    <div class="p-4 flex justify-between items-center"><span class="text-sm text-slate-700">다크 모드</span><div class="w-10 h-6 bg-slate-200 rounded-full relative"><div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-chat" class="screen h-full bg-white">
+            <div class="flex flex-col h-full">
+                <div class="bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 pt-6 shadow-sm relative z-20 flex-shrink-0">
+                    <button onclick="backToPrevFromChat()" class="text-slate-400 hover:text-slate-800 p-2"><i class="fas fa-arrow-left text-lg"></i></button>
+                    <div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-100 flex items-center justify-center">
+                        <img id="chat-profile-img" src="" class="w-full h-full object-cover">
+                        <i id="chat-profile-icon" class="fas fa-robot text-white hidden"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm" id="chat-name">변호사 이름</h3>
+                        <div class="flex items-center gap-1.5"><div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div><span class="text-[10px] text-slate-400 font-medium">상담 가능</span></div>
+                    </div>
+                </div>
+                
+                <div id="chat-body" class="flex-1 bg-slate-50 p-4 overflow-y-auto flex flex-col gap-2 pb-4 scroll-smooth"></div>
+                
+                <div class="bg-white p-3 border-t border-slate-100 flex gap-2 items-center flex-shrink-0 pb-6 shadow-[0_-5px_20px_rgba(0,0,0,0.02)]">
+                    <button class="text-slate-400 p-2 hover:text-emerald-500 transition-colors"><i class="fas fa-plus"></i></button>
+                    <input id="chat-input" type="text" placeholder="메시지를 입력하세요..." class="flex-1 bg-slate-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()" class="bg-emerald-500 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md hover:bg-emerald-600 transition-colors active:scale-95"><i class="fas fa-paper-plane text-sm"></i></button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // State
+    let previousScreen = 'expert';
+    let currentChatId = null;
+    let currentAiType = null;
+    const chatHistoryStore = {}; 
+    const savedCoupons = []; 
+
+    const expertsData = [
+        { name: "김수현", category: "형사", tag: "강력범죄/성범죄 전문", img: "https://images.unsplash.com/photo-1560250097-0b93528c311a?fit=crop&w=200&h=200", desc: "억울함을 끝까지 밝혀냅니다." },
+        { name: "이지아", category: "이혼", tag: "재산분할/양육권 전문", img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?fit=crop&w=200&h=200", desc: "새로운 출발, 든든한 버팀목." },
+        { name: "박도윤", category: "부동산", tag: "임대차/매매 분쟁", img: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?fit=crop&w=200&h=200", desc: "복잡한 권리관계 명쾌한 해법." },
+        { name: "최서영", category: "형사", tag: "경찰 수사관 출신", img: "https://images.unsplash.com/photo-1580489944761-15a19d654956?fit=crop&w=200&h=200", desc: "초기 수사 대응부터 확실하게." },
+        { name: "정우진", category: "부동산", tag: "건설/하자 소송", img: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fit=crop&w=200&h=200", desc: "건설사 법무팀 10년 경력." },
+        { name: "강하늘", category: "이혼", tag: "가사법 전문", img: "https://images.unsplash.com/photo-1598550832205-d525427216a9?fit=crop&w=200&h=200", desc: "가족의 마음으로 듣겠습니다." },
+        { name: "윤재석", category: "형사", tag: "사기/경제범죄", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?fit=crop&w=200&h=200", desc: "금융 범죄, 치밀한 분석력." },
+        { name: "송민지", category: "부동산", tag: "전세사기 전담", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?fit=crop&w=200&h=200", desc: "보증금 반환, 끝까지 책임집니다." }
+    ];
+
+    // Dummy Community Posts
+    const communityPosts = [
+        {
+            user: "익명123", time: "10분 전", title: "전세 보증금 안 돌려주는데 이거 신고 가능한가요?",
+            content: "계약 만료 3개월 전부터 말했는데 집주인이 연락을 피해요... 내용증명 보내면 해결되나요?",
+            voteTitle: "내용증명 보낼까요?", leftLabel: "보낸다", leftPct: 80, rightLabel: "기다린다", rightPct: 20,
+            likes: 12, comments: 5
+        },
+        {
+            user: "고민많은직장인", time: "1시간 전", title: "중고거래 사기 당한 것 같습니다 ㅠㅠ",
+            content: "입금했는데 물건도 안 보내고 잠수 탔어요. 소액인데 경찰서 가면 받아주나요?",
+            voteTitle: "신고 가능?", leftLabel: "가능", leftPct: 95, rightLabel: "힘듦", rightPct: 5,
+            likes: 45, comments: 22
+        },
+        {
+            user: "법알못", time: "3시간 전", title: "층간소음 때문에 윗집이랑 싸웠는데 고소 당할까요?",
+            content: "너무 시끄러워서 올라가서 문 좀 세게 두드렸는데, 주거침입으로 신고한다고 하네요...",
+            voteTitle: "누가 잘못?", leftLabel: "윗집", leftPct: 60, rightLabel: "글쓴이", rightPct: 40,
+            likes: 8, comments: 14
+        }
+    ];
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast-msg');
+        document.getElementById('toast-text').innerText = msg;
+        toast.style.display = 'block';
+        toast.style.animation = 'none';
+        toast.offsetHeight; 
+        toast.style.animation = null; 
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+
+    function toggleVipBtn(show) {
+        const btn = document.getElementById('vip-btn');
+        if(show) {
+            btn.classList.remove('hidden-btn');
+        } else {
+            btn.classList.add('hidden-btn');
+        }
+    }
+
+    // --- NAVIGATION LOGIC ---
+    function switchTab(tabName) {
+        document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.remove('active', 'text-emerald-600', 'font-bold');
+            n.classList.add('text-slate-400');
+        });
+        
+        const activeNav = document.getElementById('nav-' + tabName);
+        if(activeNav) {
+            activeNav.classList.add('active', 'text-emerald-600', 'font-bold');
+            activeNav.classList.remove('text-slate-400');
+        }
+
+        document.querySelectorAll('.screen').forEach(s => {
+            s.style.display = 'none';
+            s.classList.remove('fade-in');
+        });
+        
+        const targetScreen = document.getElementById('screen-' + tabName);
+        if(targetScreen) {
+            targetScreen.style.display = 'flex'; 
+            targetScreen.classList.add('fade-in');
+        }
+
+        // 홈(home) 탭에서만 '진행 중인 사건' 위젯(vip-btn) 보이기
+        if (tabName === 'home') {
+            toggleVipBtn(true);
+        } else {
+            toggleVipBtn(false);
+        }
+
+        if (tabName === 'expert') filterExperts('전체');
+        if (tabName === 'community') renderCommunity();
+    }
+
+    function goToSubMenu(page) {
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        const target = document.getElementById('screen-' + page);
+        target.style.display = 'flex';
+        target.classList.add('fade-in');
+        toggleVipBtn(false);
+        if(page === 'coupons') renderCoupons();
+    }
+
+    function backToMenu() { switchTab('menu'); }
+
+    // --- COMMUNITY LOGIC ---
+    function renderCommunity() {
+        const feed = document.getElementById('community-feed');
+        feed.innerHTML = '';
+        communityPosts.forEach(post => {
+            feed.innerHTML += `
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs">👤</div>
+                    <div><p class="text-xs font-bold text-slate-800">${post.user}</p><p class="text-[10px] text-slate-400">${post.time}</p></div>
+                </div>
+                <h3 class="font-bold text-slate-800 mb-1">${post.title}</h3>
+                <p class="text-xs text-slate-600 leading-relaxed mb-4">${post.content}</p>
+                
+                <div class="bg-slate-50 p-3 rounded-xl mb-3">
+                    <p class="text-[10px] text-slate-500 font-bold mb-2 text-center">🗳️ ${post.voteTitle}</p>
+                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-600 mb-1">
+                        <span>${post.leftLabel}</span>
+                        <span class="ml-auto">${post.rightLabel}</span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                        <div class="h-full bg-emerald-400 vote-bar" style="width: ${post.leftPct}%"></div>
+                        <div class="h-full bg-red-400 vote-bar" style="width: ${post.rightPct}%"></div>
+                    </div>
+                    <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                        <span>${post.leftPct}%</span>
+                        <span>${post.rightPct}%</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 text-xs text-slate-400 border-t border-slate-50 pt-3">
+                    <button class="flex items-center gap-1 hover:text-red-500"><i class="far fa-heart"></i> ${post.likes}</button>
+                    <button class="flex items-center gap-1 hover:text-blue-500"><i class="far fa-comment"></i> ${post.comments}</button>
+                    <button class="ml-auto"><i class="fas fa-share-alt"></i></button>
+                </div>
+            </div>`;
+        });
+    }
+
+    // --- OTHER LOGIC (Coupons, Home, Case, Evidence) ---
+    function renderCoupons() {
+        const list = document.getElementById('coupon-list');
+        list.innerHTML = '';
+        if(savedCoupons.length === 0) {
+            list.innerHTML = `<div class="text-center text-slate-400 mt-10 text-sm">저장된 쿠폰이 없습니다.</div>`;
+            return;
+        }
+        savedCoupons.forEach(c => {
+            list.innerHTML += `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                <div><h3 class="font-bold text-slate-800">${c.title}</h3><p class="text-xs text-slate-500">${c.desc}</p></div>
+                <div class="text-right"><span class="block text-indigo-600 font-bold text-lg">${c.code}</span><span class="text-[10px] text-slate-400">2024.12.31 만료</span></div>
+            </div>`;
+        });
+    }
+
+    function goToHome() { switchTab('home'); }
+    function goToCase() { switchTab('case'); }
+    
+    function goToRecommendation() {
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        const target = document.getElementById('screen-recommendation');
+        target.style.display = 'flex';
+        target.classList.add('fade-in');
+        toggleVipBtn(false);
+        showToast("AI가 최적의 전문가를 매칭했습니다.");
+
+        const container = document.getElementById('rec-list-container');
+        container.innerHTML = '';
+        const recExperts = expertsData.slice(0, 5);
+        recExperts.forEach((l, index) => {
+            container.innerHTML += `
+            <div class="bg-white p-4 rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-slate-100 flex gap-4 items-center">
+                <div class="w-12 h-12 rounded-full bg-slate-100 overflow-hidden"><img src="${l.img}" class="w-full h-full object-cover"></div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-slate-800 text-sm">${l.name} 변호사 <i class="fas fa-check-circle text-blue-500 text-[10px]"></i></h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">${l.category} • ${l.tag}</p>
+                </div>
+                <button onclick="startChat('EXPERT', ${index}, 'recommendation')" class="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-500 hover:text-white transition-colors">선택</button>
+            </div>`;
+        });
+    }
+
+    // --- CHAT LOGIC ---
+    function openCaseAiChat() { startChat('CASE_AI', null, 'case'); }
+    function openContractAiChat() { startChat('CONTRACT_AI', null, 'result'); }
+
+    function startChat(type, identifier, from) {
+        currentAiType = type;
+        previousScreen = from;
+        let chatName, imgUrl, isAi, bgColorClass, uniqueId;
+
+        if (type === 'EXPERT') {
+            const expert = expertsData[identifier];
+            chatName = expert.name + ' 변호사';
+            imgUrl = expert.img;
+            isAi = false;
+            uniqueId = 'EXPERT_' + identifier; 
+        } else if (type === 'CASE_AI') {
+            chatName = '사건 전담 AI 변호사';
+            isAi = true;
+            bgColorClass = 'bg-emerald-500';
+            uniqueId = 'CASE_AI';
+        } else if (type === 'CONTRACT_AI') {
+            chatName = '법률 도우미 AI';
+            isAi = true;
+            bgColorClass = 'bg-indigo-500';
+            uniqueId = 'CONTRACT_AI';
+        }
+
+        currentChatId = uniqueId;
+
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        const chatScreen = document.getElementById('screen-chat');
+        chatScreen.style.display = 'flex';
+        toggleVipBtn(false);
+        
+        document.getElementById('chat-name').innerText = chatName;
+        const img = document.getElementById('chat-profile-img');
+        const icon = document.getElementById('chat-profile-icon');
+        const imgContainer = img.parentElement;
+
+        if (isAi) {
+            img.style.display = 'none';
+            icon.classList.remove('hidden');
+            imgContainer.className = `w-10 h-10 rounded-full flex items-center justify-center text-white ${bgColorClass}`;
+        } else {
+            img.style.display = 'block';
+            img.src = imgUrl;
+            icon.classList.add('hidden');
+            imgContainer.className = "w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-100 flex items-center justify-center";
+        }
+
+        const chatBody = document.getElementById('chat-body');
+        chatBody.innerHTML = '';
+
+        if (!chatHistoryStore[currentChatId]) {
+            let initialMsg = "";
+            if(type === 'CASE_AI') initialMsg = "안녕하세요. 김대표님의 '전세금 반환 소송(2023가단54xx)'을 전담하고 있는 AI 변호사입니다.\n현재 사건 진행률은 75%이며, 상대방 답변서에 대한 반박 준비서면을 작성 중입니다. 궁금한 점이 있으신가요?";
+            else if(type === 'CONTRACT_AI') initialMsg = "방금 진단하신 부동산 임대차 계약서에 대해 궁금한 점이 있으신가요?\n'원상복구 조항'의 위험성과 '특약 누락'에 대해 법률적인 조언을 드릴 수 있습니다.";
+            else initialMsg = "안녕하세요! Unfold 분석 결과 보고 연락드립니다. 무엇을 도와드릴까요?";
+
+            chatHistoryStore[currentChatId] = [
+                { type: 'date', text: '오늘' },
+                { type: isAi ? 'ai' : 'you', text: initialMsg }
+            ];
+        }
+        renderChat();
+    }
+
+    function renderChat() {
+        const chatBody = document.getElementById('chat-body');
+        chatBody.innerHTML = '';
+        chatHistoryStore[currentChatId].forEach(msg => {
+            if(msg.type === 'date') chatBody.innerHTML += `<div class="text-center text-[10px] text-slate-400 my-4">${msg.text}</div>`;
+            else if(msg.type === 'you') chatBody.innerHTML += `<div class="chat-bubble chat-you">${msg.text}</div>`;
+            else if(msg.type === 'me') chatBody.innerHTML += `<div class="chat-bubble chat-me">${msg.text}</div>`;
+            else if(msg.type === 'ai') chatBody.innerHTML += `<div class="chat-bubble chat-ai"><i class="fas fa-robot mr-1 text-emerald-600"></i> ${msg.text}</div>`;
+        });
+        setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; }, 50);
+    }
+
+    function backToPrevFromChat() {
+        if (previousScreen === 'recommendation') goToRecommendation();
+        else if (previousScreen === 'case') switchTab('case');
+        else if (previousScreen === 'result') { 
+            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            document.getElementById('screen-result').style.display = 'flex';
+        }
+        else switchTab('expert');
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const chatBody = document.getElementById('chat-body');
+        chatBody.innerHTML += `<div class="chat-bubble chat-me">${text}</div>`;
+        
+        if(!chatHistoryStore[currentChatId]) chatHistoryStore[currentChatId] = [];
+        chatHistoryStore[currentChatId].push({ type: 'me', text: text });
+        
+        input.value = '';
+        input.focus();
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        setTimeout(() => {
+            let reply = "";
+            let type = "you"; 
+            
+            if (currentAiType === 'CASE_AI') {
+                type = 'ai';
+                reply = "네, 고객님의 사건 데이터(2023가단54xx)를 분석한 결과, 해당 증거는 승소에 매우 유리합니다. 상대방이 주장하는 '원상복구 특약'은 효력이 없음을 입증할 수 있습니다.";
+            } else if (currentAiType === 'CONTRACT_AI') {
+                type = 'ai';
+                reply = "문의하신 '원상복구 조항'은 주택임대차보호법에 위배될 소지가 있습니다. 제가 표준계약서 제5조를 인용하여 수정 문구를 만들어 드릴까요?";
+            } else {
+                reply = "네, 보내주신 내용 확인했습니다. 구체적인 상담을 위해 잠시 후 전화 드려도 될까요?";
+            }
+
+            const bubbleClass = type === 'ai' ? 'chat-ai' : 'chat-you';
+            const iconHtml = type === 'ai' ? '<i class="fas fa-robot mr-1 text-emerald-600"></i> ' : '';
+            
+            chatBody.innerHTML += `<div class="chat-bubble ${bubbleClass}">${iconHtml}${reply}</div>`;
+            chatHistoryStore[currentChatId].push({ type: type, text: reply });
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }, 1000);
+    }
+
+    function filterExperts(category) {
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if(btn.dataset.cat === category) {
+                btn.classList.add('bg-slate-800', 'text-white');
+                btn.classList.remove('bg-slate-100', 'text-slate-500');
+            } else {
+                btn.classList.remove('bg-slate-800', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-500');
+            }
+        });
+
+        const container = document.getElementById('expert-list-area');
+        container.innerHTML = `<p class="text-[11px] font-bold text-emerald-600 mb-3 px-1 animate-pulse">● ${category} 전문 파트너 실시간 연결 가능</p>`;
+        
+        expertsData.forEach((expert, index) => {
+            if(category !== '전체' && expert.category !== category) return;
+            container.innerHTML += `
+            <div class="bg-white border border-slate-100 rounded-2xl p-4 flex gap-4 items-start shadow-sm mb-3">
+                <div class="w-12 h-12 rounded-full bg-slate-100 overflow-hidden flex-shrink-0"><img src="${expert.img}" class="w-full h-full object-cover"></div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1 mb-1"><h3 class="font-bold text-slate-800 text-sm">${expert.name}</h3><i class="fas fa-check-circle text-blue-500 text-[10px]"></i></div>
+                    <span class="inline-block bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded mb-2">${expert.category} 전문</span>
+                    <p class="text-xs text-slate-400 line-clamp-1">"${expert.desc}"</p>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="startChat('EXPERT', ${index}, 'expert')" class="flex-1 bg-slate-50 text-slate-600 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 hover:text-emerald-600 transition-colors">채팅</button>
+                        <button onclick="if(confirm('안심번호로 연결하시겠습니까?')) showToast('전화 연결 중...')" class="flex-1 bg-emerald-50 text-emerald-600 py-2 rounded-lg text-xs font-bold hover:bg-emerald-500 hover:text-white transition-colors">전화</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+    }
+
+    function selfTreat() {
+        const textToCopy = `[수정 요청] 임대차 계약서 특약 조항 수정 부탁드립니다.\n\n안녕하세요 임대인님.\n1. "퇴거 시 원상복구" 조항은 "고의/과실에 의한 파손 시"로 구체화 부탁드립니다.\n2. "잔금일 전까지 근저당권 말소" 특약을 추가해주시면 감사하겠습니다.\n\n확인 부탁드립니다.`;
+        navigator.clipboard.writeText(textToCopy).then(() => showToast("수정 요청 텍스트가 복사되었습니다!")).catch(err => {
+             const textArea = document.createElement("textarea"); textArea.value = textToCopy; document.body.appendChild(textArea); textArea.select(); document.execCommand("Copy"); textArea.remove(); showToast("수정 요청 텍스트가 복사되었습니다!");
+        });
+    }
+    function uploadEvidence() { document.getElementById('file-input').click(); }
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const list = document.getElementById('evidence-list');
+            const date = new Date().toLocaleDateString();
+            showToast('파일이 안전하게 암호화되어 업로드되었습니다.');
+            list.innerHTML += `<div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors"><div class="w-8 h-8 bg-slate-100 text-slate-500 rounded flex items-center justify-center text-xs"><i class="fas fa-file"></i></div><div class="flex-1"><p class="text-xs font-bold text-slate-700">${file.name}</p><p class="text-[10px] text-slate-400">${date} 업로드</p></div><div class="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center"><div class="w-2 h-2 bg-emerald-500 rounded-full"></div></div></div>`;
+        }
+    }
+    function startUniversalScan() {
+        toggleVipBtn(false);
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        document.getElementById('screen-scan').style.display = 'flex';
+        
+        const detail = document.getElementById('scan-detail');
+        const title = document.getElementById('scan-title');
+        setTimeout(() => { title.innerText = "문서 윤곽 인식..."; }, 1000);
+        setTimeout(() => { title.innerText = "부동산 임대차 계약서 확인"; detail.innerHTML = '<i class="fas fa-file-contract mr-2"></i><span>Standard Lease Agreement</span>'; detail.querySelector('i').classList.add('text-yellow-400'); }, 2000);
+        setTimeout(() => { 
+            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+            document.getElementById('screen-result').style.display = 'flex';
+            setTimeout(() => { document.getElementById('coupon-popup').style.display = 'flex'; }, 2000); 
+        }, 3500);
+    }
+    function closePopup() { document.getElementById('coupon-popup').style.display = 'none'; }
+    function copyCoupon() { navigator.clipboard.writeText("MOVE-2026").then(() => showToast("쿠폰 코드가 복사되었습니다!")); }
+    function saveCoupon() { savedCoupons.push({ title: "이삿짐 센터 5만원 할인", desc: "Unfold 파트너 전용", code: "MOVE-2026" }); showToast('쿠폰함에 저장되었습니다.'); closePopup(); }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unfold Business Center v26.1 (Partnership Logic Fix)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Pretendard', sans-serif; background-color: #F8FAFC; color: #1e293b; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .nav-item { cursor: pointer; transition: all 0.2s; border-radius: 8px; font-weight: 500; color: #64748b; margin-bottom: 2px; }
+        .nav-item:hover { background-color: #f1f5f9; color: #0f172a; }
+        .nav-item.active { background-color: #0f172a; color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .nav-item.active i { color: #34d399; }
+
+        .role-switch { 
+            position: fixed; bottom: 20px; right: 20px; z-index: 999; 
+            background: #0f172a; padding: 12px 24px; border-radius: 50px; 
+            color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+            cursor: pointer; transition: all 0.2s; border: 2px solid #10B981; font-weight: bold;
+        }
+        .role-switch:hover { transform: scale(1.05); }
+        .role-switch.admin-mode { border-color: #6366f1; background: #312e81; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
+        .modal-content { background: white; border-radius: 16px; width: 850px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+
+        .trigger-card { transition: all 0.2s; border: 1px solid #e2e8f0; background: white; border-radius: 12px; padding: 24px; }
+        .trigger-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1); border-color: #6366f1; }
+
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-loc { background: #e0f2fe; color: #0369a1; }
+        .badge-cat { background: #f3e8ff; color: #7e22ce; }
+        .badge-active { background:#ecfccb; color:#166534; padding:4px 8px; border-radius:6px; font-weight:700; }
+        .badge-pending { background:#fff7ed; color:#b45309; padding:4px 8px; border-radius:6px; font-weight:700; }
+        .badge-blue { background:#ebf8ff; color:#075985; padding:4px 8px; border-radius:6px; font-weight:700; }
+        
+        .live-row { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .period-btn.active { background-color: #0f172a; color: white; }
+        .period-btn { background-color: #f1f5f9; color: #64748b; transition: all 0.2s; }
+        
+        .region-filter-btn { background-color: #f1f5f9; color: #64748b; }
+        .region-filter-btn:hover { background-color: #e2e8f0; }
+        .region-filter-btn.active { background-color: #4f46e5; color: white; }
+    </style>
+</head>
+<body>
+
+    
+<div id="role-switch-btn" class="role-switch hidden" onclick="app.toggleRole()" tabindex="0" role="button" aria-pressed="false" aria-label="역할 전환 버튼">
+    <i class="fas fa-sync-alt mr-2"></i> <span id="current-role-label">현재: 파트너사 모드</span>
+</div>
+
+<div id="toast" role="status" aria-live="polite" class="fixed top-5 right-5 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl transform translate-x-full transition-transform duration-300 z-[300] flex items-center gap-3">
+    <i class="fas fa-check-circle text-emerald-400" aria-hidden="true"></i><span id="toast-msg">알림</span>
+</div>
+
+<div id="modal-container" class="modal-overlay"></div>
+
+<div class="flex h-screen overflow-hidden">
+    
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 z-20">
+        <div class="h-16 flex items-center px-6 border-b border-gray-100">
+            <div id="logo-text" class="text-xl font-extrabold text-slate-900">Unfold<span class="text-emerald-500">.</span> Biz</div>
+        </div>
+
+        <nav class="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+            <div id="menu-partner">
+                <div class="px-3 mb-2 text-xs font-bold uppercase text-slate-400">인사이트</div>
+                <div class="nav-item active p-3 mb-1 flex items-center gap-3" onclick="app.navigate('dashboard')"><i class="fas fa-chart-pie w-5"></i> 대시보드</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('chat')"><i class="fas fa-comments w-5"></i> 메시지 (본사문의)</div>
+                
+                <div class="px-3 mt-6 mb-2 text-xs font-bold uppercase text-slate-400">마케팅 & 제휴</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('create-ad')"><i class="fas fa-magic w-5"></i> AI Ad 스튜디오</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('manage-ad')"><i class="fas fa-list w-5"></i> 캠페인 관리</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('partnership-req')"><i class="fas fa-handshake w-5"></i> 제휴(수수료) 제안</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('crm')"><i class="fas fa-bullhorn w-5"></i> 고객 리타겟팅</div>
+                
+                <div class="px-3 mt-6 mb-2 text-xs font-bold uppercase text-slate-400">자산</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('budget')"><i class="fas fa-wallet w-5"></i> 예산/충전</div>
+            </div>
+
+            <div id="menu-admin" class="hidden">
+                <div class="px-3 mb-2 text-xs font-bold uppercase text-slate-400">관제 센터</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3 text-indigo-600 bg-indigo-50" onclick="app.navigate('live-traffic')">
+                    <i class="fas fa-satellite-dish w-5 animate-pulse"></i> 실시간 트래픽
+                </div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('dashboard')"><i class="fas fa-columns w-5"></i> 통합 대시보드</div>
+                
+                <div class="px-3 mt-6 mb-2 text-xs font-bold uppercase text-slate-400">관리</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3 bg-slate-100 text-slate-900 font-bold" onclick="app.navigate('admin-trigger')">
+                    <i class="fas fa-project-diagram w-5 text-blue-600"></i> 트리거 분석
+                </div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('admin-approval')">
+                    <div class="flex-1 flex items-center gap-3"><i class="fas fa-check-circle w-5"></i> 광고 승인 대기</div>
+                    <span id="badge-approval" class="bg-red-500 text-white text-[10px] px-1.5 rounded-full hidden">0</span>
+                </div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('admin-partnership-review')">
+                    <div class="flex-1 flex items-center gap-3"><i class="fas fa-file-contract w-5"></i> 제휴 제안 검토</div>
+                    <span id="badge-partner-rev" class="bg-indigo-500 text-white text-[10px] px-1.5 rounded-full hidden">0</span>
+                </div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('admin-partners')"><i class="fas fa-store w-5"></i> 제휴사 관리</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('chat')"><i class="fas fa-headset w-5"></i> 메시지 센터</div>
+                <div class="nav-item p-3 mb-1 flex items-center gap-3" onclick="app.navigate('admin-settlement')"><i class="fas fa-file-invoice-dollar w-5"></i> 정산 처리</div>
+            </div>
+        </nav>
+
+        <div class="p-4 border-t border-gray-200">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold" id="user-avatar">P</div>
+                <div>
+                    <div class="text-sm font-bold text-slate-900" id="user-name">파트너사</div>
+                    <div class="text-xs text-slate-500" id="user-role">Partner</div>
+                </div>
+            </div>
+            <button onclick="app.logout()" class="w-full bg-red-50 text-red-600 hover:bg-red-100 py-2 px-3 rounded-lg text-xs font-bold transition-all">
+                <i class="fas fa-sign-out-alt mr-1"></i> 로그아웃
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative" id="app-content">
+        <header class="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-8 shadow-sm z-10 flex-shrink-0">
+            <h2 class="text-lg font-bold text-slate-800" id="page-title">대시보드</h2>
+            <div class="flex items-center gap-4">
+                <div id="partner-balance-area" class="hidden text-right">
+                    <span class="text-xs text-slate-500 block">잔여 예산</span>
+                    <span class="text-sm font-bold text-emerald-600" id="header-budget">₩ 0</span>
+                </div>
+                <div class="relative">
+                    <button class="p-2 text-slate-400 hover:text-slate-600 relative" onclick="app.toggleNoti()">
+                        <i class="far fa-bell text-xl"></i>
+                        <div id="noti-dot" class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white hidden"></div>
+                    </button>
+                    <div id="noti-dropdown" class="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 hidden">
+                        <div class="p-3 border-b border-slate-50 flex justify-between items-center bg-slate-50">
+                            <span class="text-xs font-bold text-slate-600">알림 센터</span>
+                            <button class="text-xs text-blue-500 font-bold" onclick="app.clearNoti()">모두 읽음</button>
+                        </div>
+                        <div id="noti-list" class="max-h-64 overflow-y-auto">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 relative" id="content-area">
+            
+            <div id="page-dashboard" class="fade-in">
+                <div id="view-partner-dashboard">
+                    <!-- 파트너용: 상단 KPI 카드 -->
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-5 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">오늘 노출수</div>
+                                <i class="fas fa-eye text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-p-views">0</div>
+                            <div class="text-xs opacity-80 mt-1">전일 대비 <span id="kpi-p-views-change">+0%</span></div>
+                        </div>
+                        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition" onclick="app.navigate('crm')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">쿠폰 발급</div>
+                                <i class="fas fa-ticket-alt text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-p-coupons">0</div>
+                            <div class="text-xs opacity-80 mt-1">리타겟팅 가능 ></div>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-5 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">전환율</div>
+                                <i class="fas fa-chart-line text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-p-conversion">0%</div>
+                            <div class="text-xs opacity-80 mt-1">업계 평균 <span id="kpi-p-avg">0%</span></div>
+                        </div>
+                        <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-5 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">활성 광고</div>
+                                <i class="fas fa-bullhorn text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-p-campaigns">0</div>
+                            <div class="text-xs opacity-80 mt-1">최대 10개</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-slate-700 to-slate-900 text-white p-5 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">잔여 예산</div>
+                                <i class="fas fa-wallet text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-2xl font-extrabold" id="kpi-p-budget">₩ 0</div>
+                            <button class="mt-2 text-xs bg-white text-slate-900 px-3 py-1 rounded-full font-bold hover:bg-slate-100 transition" onclick="app.navigate('budget')">충전 ></button>
+                        </div>
+                    </div>
+                    
+                    <!-- 파트너용: 차트 영역 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 class="font-bold text-lg text-slate-800">📊 주간 성과 추이</h3>
+                                    <p class="text-xs text-slate-500 mt-1">최근 7일간 노출/전환 데이터</p>
+                                </div>
+                                <div class="flex gap-2 text-xs">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-bold">노출</span>
+                                    <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold">전환</span>
+                                </div>
+                            </div>
+                            <div class="h-64"><canvas id="partnerChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">🗺️ 지역별 성과</h3>
+                            <div class="h-64"><canvas id="partnerRegionChart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 파트너용: 최근 활동 -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-slate-800">⚡ 최근 활동</h3>
+                            <button class="text-xs text-blue-600 font-bold hover:underline" onclick="app.navigate('crm')">전체 보기 ></button>
+                        </div>
+                        <div id="partner-recent-activities" class="space-y-3"></div>
+                    </div>
+                </div>
+                
+                <div id="view-admin-dashboard" class="hidden">
+                    <!-- 어드민용: 상단 KPI 카드 -->
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-5 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition" onclick="app.navigate('live-traffic')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">실시간 접속</div>
+                                <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-a-live">0</div>
+                            <div class="text-xs opacity-80 mt-1 flex items-center gap-1"><i class="fas fa-chart-line"></i> 상세보기 ></div>
+                        </div>
+                        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-5 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition" onclick="app.navigate('admin-approval')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">승인 대기</div>
+                                <i class="fas fa-clock text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="dash-pending-cnt">0</div>
+                            <div class="text-xs opacity-80 mt-1">광고 검토 필요</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-5 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition" onclick="app.navigate('admin-partnership-review')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">제휴 제안</div>
+                                <i class="fas fa-handshake text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="dash-partner-cnt">0</div>
+                            <div class="text-xs opacity-80 mt-1">신규 제안서</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-5 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition" onclick="app.navigate('admin-settlement')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">정산 요청</div>
+                                <i class="fas fa-won-sign text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="dash-settle-cnt">0</div>
+                            <div class="text-xs opacity-80 mt-1">처리 대기중</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-xl shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-bold opacity-90">활성 파트너</div>
+                                <i class="fas fa-users text-xl opacity-75"></i>
+                            </div>
+                            <div class="text-3xl font-extrabold" id="kpi-a-partners">0</div>
+                            <div class="text-xs opacity-80 mt-1">전체 <span id="kpi-a-total-partners">0</span>개</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 어드민용: 차트 영역 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">📍 지역별 매출 분포</h3>
+                            <div class="h-80"><canvas id="adminRegionChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">🏢 카테고리별 성과</h3>
+                            <div class="h-80"><canvas id="adminCategoryChart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 어드민용: 하단 분석 영역 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">⚠️ 매칭 부족 (Opportunity Gap)</h3>
+                            <p class="text-xs text-slate-500 mb-4">수요는 있지만 공급이 부족한 영역</p>
+                            <div id="dash-opportunity-list" class="space-y-4"></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">🌟 TOP 파트너</h3>
+                            <p class="text-xs text-slate-500 mb-4">이번 주 우수 성과 파트너</p>
+                            <div id="dash-top-partners" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-admin-trigger" class="fade-in hidden h-full flex flex-col pb-10">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">트리거별 발생 추이 분석</h3>
+                        <p class="text-slate-500 text-sm mt-1">고객 행동(Trigger) 패턴을 분석하여 매칭 기회를 포착합니다.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto" id="trigger-list-body"></div>
+            </div>
+
+            <div id="page-live-traffic" class="fade-in hidden h-full pb-10">
+                <!-- 지역별 통계 카드 -->
+                <div class="grid grid-cols-5 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-4">
+                        <div class="text-xs font-bold opacity-90 mb-1">서울</div>
+                        <div class="text-2xl font-extrabold" id="region-seoul-count">0</div>
+                        <div class="text-xs opacity-80 mt-1">실시간 접속</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
+                        <div class="text-xs font-bold opacity-90 mb-1">경기</div>
+                        <div class="text-2xl font-extrabold" id="region-경기-count">0</div>
+                        <div class="text-xs opacity-80 mt-1">실시간 접속</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-4">
+                        <div class="text-xs font-bold opacity-90 mb-1">인천</div>
+                        <div class="text-2xl font-extrabold" id="region-인천-count">0</div>
+                        <div class="text-xs opacity-80 mt-1">실시간 접속</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-4">
+                        <div class="text-xs font-bold opacity-90 mb-1">부산</div>
+                        <div class="text-2xl font-extrabold" id="region-부산-count">0</div>
+                        <div class="text-xs opacity-80 mt-1">실시간 접속</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-xl shadow-lg p-4">
+                        <div class="text-xs font-bold opacity-90 mb-1">기타</div>
+                        <div class="text-2xl font-extrabold" id="region-기타-count">0</div>
+                        <div class="text-xs opacity-80 mt-1">실시간 접속</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-6 h-[calc(100%-120px)]">
+                    <div class="w-1/3 space-y-4 flex flex-col">
+                        <!-- 지역별 실시간 차트 -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex-1">
+                            <h3 class="font-bold text-lg text-slate-800 mb-4">🗺️ 지역별 실시간 분포</h3>
+                            <div class="h-64"><canvas id="regionLiveChart"></canvas></div>
+                            <div class="mt-4 text-center text-xs text-slate-400">데이터는 1.5초마다 갱신됩니다</div>
+                        </div>
+                        
+                        <!-- 시간대별 트래픽 -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-sm text-slate-800 mb-3">📊 시간대별 접속 추이</h3>
+                            <div class="h-32"><canvas id="timeSeriesChart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-2/3 bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col overflow-hidden">
+                        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-blue-50">
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-800"><i class="fas fa-satellite-dish text-emerald-500 mr-2"></i>실시간 매칭 로그</h3>
+                                <p class="text-xs text-slate-500 mt-1">고객 접속부터 업체 매칭까지 실시간 모니터링</p>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">● LIVE</span>
+                                <select id="region-filter" onchange="app.filterLiveTrafficByRegion(this.value)" class="text-xs border border-slate-300 rounded px-2 py-1">
+                                    <option value="전체">전체 지역</option>
+                                    <option value="서울">서울</option>
+                                    <option value="경기">경기</option>
+                                    <option value="인천">인천</option>
+                                    <option value="부산">부산</option>
+                                    <option value="기타">기타</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-4 p-3 bg-slate-100 text-xs font-bold text-slate-500 uppercase border-b">
+                            <div class="col-span-2">시간</div><div class="col-span-2">사용자</div><div class="col-span-2">지역</div><div class="col-span-3">행동(Trigger)</div><div class="col-span-3">매칭 업체</div>
+                        </div>
+                        <div id="live-feed-list" class="flex-1 overflow-y-auto p-0 bg-white"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-admin-partnership-review" class="fade-in hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="font-bold text-lg text-slate-800">제휴 제안 검토</h3>
+                        <span class="text-indigo-600 font-bold text-sm" id="review-count">대기: 0</span>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 bg-slate-50 border-b uppercase"><tr><th class="px-6 py-4">업체명</th><th class="px-6 py-4">카테고리</th><th class="px-6 py-4">제안 내용 (요약)</th><th class="px-6 py-4">희망 수수료</th><th class="px-6 py-4">날짜</th><th class="px-6 py-4">관리</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100" id="partnership-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="page-admin-approval" class="fade-in hidden"><div class="bg-white rounded-xl shadow-sm border border-slate-200"><div class="p-6 border-b flex justify-between"><h3 class="font-bold text-lg">광고 승인 대기</h3><button class="text-sm bg-slate-100 px-3 py-1 rounded" onclick="app.renderAdminApproval()">새로고침</button></div><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 bg-slate-50 border-b uppercase"><tr><th class="px-6 py-4">업체명</th><th class="px-6 py-4">카테고리</th><th class="px-6 py-4">제목</th><th class="px-6 py-4">예산</th><th class="px-6 py-4">관리</th></tr></thead><tbody class="divide-y divide-slate-100" id="admin-approval-list"></tbody></table></div></div>
+            <div id="page-admin-settlement" class="fade-in hidden"><div class="bg-white rounded-xl shadow-sm border border-slate-200"><div class="p-6 border-b flex justify-between"><h3 class="font-bold text-lg">정산 요청 관리 (30건)</h3><span class="text-red-500 font-bold text-sm" id="settle-pending-text">대기: 0건</span></div><div class="max-h-[600px] overflow-y-auto"><table class="w-full text-sm text-left relative"><thead class="text-xs text-slate-500 bg-slate-50 border-b uppercase sticky top-0"><tr><th class="px-6 py-4">요청일</th><th class="px-6 py-4">업체명</th><th class="px-6 py-4">금액</th><th class="px-6 py-4">계좌</th><th class="px-6 py-4">상태</th><th class="px-6 py-4">관리</th></tr></thead><tbody class="divide-y divide-slate-100" id="settlement-list"></tbody></table></div></div></div>
+            <div id="page-admin-partners" class="fade-in hidden"><div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[calc(100vh-140px)]"><div class="p-6 border-b border-slate-100"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">제휴사 목록</h3><button onclick="app.exportPartners()" class="text-sm bg-slate-100 px-3 py-1 rounded">CSV 내보내기</button></div><div class="flex gap-2 items-center"><span class="text-xs text-slate-600 font-bold">지역 필터:</span><button onclick="app.filterPartnersByRegion('전체')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn active" data-region="전체">전체</button><button onclick="app.filterPartnersByRegion('서울')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="서울">서울</button><button onclick="app.filterPartnersByRegion('경기')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="경기">경기</button><button onclick="app.filterPartnersByRegion('인천')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="인천">인천</button><button onclick="app.filterPartnersByRegion('부산')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="부산">부산</button><button onclick="app.filterPartnersByRegion('대구')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="대구">대구</button><button onclick="app.filterPartnersByRegion('기타')" class="px-3 py-1 rounded text-xs font-bold transition-all region-filter-btn" data-region="기타">기타</button></div></div><div class="overflow-auto flex-1"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 bg-slate-50 border-b sticky top-0 uppercase"><tr><th class="px-6 py-4">업체명</th><th class="px-6 py-4">지역</th><th class="px-6 py-4">담당자</th><th class="px-6 py-4">예산</th><th class="px-6 py-4">상태</th><th class="px-6 py-4">관리</th></tr></thead><tbody class="divide-y divide-slate-100" id="partner-list-body"></tbody></table></div></div></div>
+            <div id="page-create-ad" class="fade-in hidden h-full flex flex-col bg-white overflow-hidden">
+                <!-- 헤더 -->
+                <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-8">
+                    <h2 class="text-3xl font-black">AI 광고 스튜디오</h2>
+                    <p class="text-blue-100 mt-2">실시간 미리보기로 광고를 만드세요</p>
+                </div>
+
+                <!-- 메인 컨텐츠 -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- 왼쪽: 미리보기 -->
+                    <div class="w-1/2 bg-slate-100 flex items-center justify-center p-8">
+                        <div class="relative">
+                            <div class="w-64 bg-black rounded-3xl border-8 border-black shadow-2xl overflow-hidden">
+                                <!-- 상태바 -->
+                                <div class="h-6 bg-black flex items-center justify-center px-6">
+                                    <span class="text-white text-[9px] font-bold">9:41</span>
+                                </div>
+                                <!-- 미리보기 -->
+                                <div class="w-64 h-96 bg-white relative flex items-center justify-center overflow-hidden">
+                                    <img id="preview-img-large" src="" class="max-w-full max-h-full object-contain hidden" style="filter: var(--filter-effect, none)">
+                                    <div id="preview-placeholder-large" class="text-center text-slate-400">
+                                        <i class="fas fa-image text-5xl mb-2 opacity-50"></i><br>
+                                        <span class="text-sm">이미지 추가</span>
+                                    </div>
+                                    <div id="text-overlay" class="absolute inset-0 flex items-center justify-center text-center opacity-0 transition-opacity">
+                                        <div class="bg-black/70 p-4 rounded text-white">
+                                            <div class="font-black text-xl">제목</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 광고 정보 -->
+                                <div class="bg-white p-3 border-t">
+                                    <div class="text-[10px] font-bold text-blue-600">SPONSORED</div>
+                                    <div class="font-bold text-xs text-slate-900 mt-1" id="preview-title-large">광고 제목</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 오른쪽: 편집 패널 -->
+                    <div class="w-1/2 bg-white overflow-y-auto p-8 space-y-6">
+                        <!-- 트리거 -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-900 mb-2">타겟 트리거</label>
+                            <select id="input-trigger-select" class="w-full border-2 border-slate-300 rounded-lg p-3 text-sm focus:border-blue-500 focus:outline-none"></select>
+                        </div>
+
+                        <!-- 제목 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-bold text-slate-900">광고 제목</label>
+                                <button onclick="app.generateAITitle()" class="px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-lg hover:bg-purple-600">✨ AI 생성</button>
+                            </div>
+                            <input type="text" id="input-ad-title" class="w-full border-2 border-slate-300 rounded-lg p-3 text-sm focus:border-purple-500 focus:outline-none" placeholder="제목 입력">
+                        </div>
+
+                        <!-- 이미지 -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-900 mb-2">이미지</label>
+                            <button onclick="document.getElementById('file-upload').click()" class="w-full bg-indigo-500 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-600">📸 이미지 선택</button>
+                            <input type="file" id="file-upload" class="hidden" accept="image/*" onchange="app.handleFileUpload(this)">
+                        </div>
+
+                        <!-- 필터 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-bold text-slate-900">필터</label>
+                                <button onclick="app.suggestBestFilter()" class="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600">💡 추천</button>
+                            </div>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="app.applyFilter('none')" class="py-2 bg-slate-200 text-slate-900 rounded font-bold text-xs hover:bg-slate-300">기본</button>
+                                <button onclick="app.applyFilter('grayscale(100%)')" class="py-2 bg-slate-400 text-white rounded font-bold text-xs hover:bg-slate-500">흑백</button>
+                                <button onclick="app.applyFilter('saturate(200%)')" class="py-2 bg-red-400 text-white rounded font-bold text-xs hover:bg-red-500">비비드</button>
+                                <button onclick="app.applyFilter('sepia(100%)')" class="py-2 bg-amber-400 text-white rounded font-bold text-xs hover:bg-amber-500">세피아</button>
+                            </div>
+                        </div>
+
+                        <!-- 예산 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-bold text-slate-900">예산</label>
+                                <span class="font-bold text-emerald-600" id="budget-display">₩ 50,000</span>
+                            </div>
+                            <input type="range" id="input-budget-range" min="10000" max="500000" step="10000" value="50000" class="w-full">
+                        </div>
+
+                        <!-- 제출 -->
+                        <button onclick="app.createAd()" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:shadow-lg transition-all">🚀 광고 심사 요청</button>
+                        <button onclick="app.optimizeFullAd()" class="w-full bg-slate-200 text-slate-900 py-3 rounded-lg font-bold hover:bg-slate-300">✨ 전체 최적화</button>
+                    </div>
+                </div>
+            </div>
+            <div id="page-partnership-req" class="fade-in hidden">
+                <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">제휴(수수료) 제안하기</h3>
+                    <p class="text-sm text-slate-500 mb-6">매칭 건당 수수료 모델을 제안합니다.</p>
+                    <textarea id="prop-desc" aria-label="제안 내용" class="w-full border rounded-lg p-4 h-32 text-sm mb-4" placeholder="제안 내용 입력"></textarea>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="text-xs font-bold">희망 수수료(%)</label>
+                            <input id="prop-rate" aria-label="희망 수수료" type="number" min="1" max="100" class="w-full border rounded p-2 text-sm">
+                        </div>
+                    </div>
+                    <button onclick="app.submitPartnership()" id="prop-submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">제안서 제출</button>
+                </div>
+            </div>
+            <div id="page-manage-ad" class="fade-in hidden"><div class="bg-white rounded-xl shadow-sm border border-slate-200"><div class="p-6 border-b border-slate-100"><h3 class="text-xl font-bold text-slate-800">내 광고 관리</h3></div><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 bg-slate-50 border-b uppercase"><tr><th class="px-6 py-4">제목</th><th class="px-6 py-4">상태</th><th class="px-6 py-4">예산</th><th class="px-6 py-4">성과</th></tr></thead><tbody class="divide-y divide-slate-100" id="partner-ad-list"></tbody></table></div></div>
+            <div id="page-budget" class="fade-in hidden"><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h3 class="text-slate-500 text-sm font-bold mb-4">예산 충전</h3><div class="text-3xl font-extrabold text-slate-900 mb-6" id="page-budget-display">₩ 0</div><div class="space-y-3"><div class="grid grid-cols-3 gap-2"><button onclick="app.chargeBudget(100000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded text-xs font-bold">+10만</button><button onclick="app.chargeBudget(500000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded text-xs font-bold">+50만</button><button onclick="app.chargeBudget(1000000)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded text-xs font-bold">+100만</button></div><input type="number" id="manual-charge-amount" placeholder="직접 금액 입력 (원)" class="w-full border p-3 rounded text-sm outline-none focus:border-slate-800"><button onclick="app.chargeBudgetManual()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 shadow-lg">충전하기</button></div></div><div class="md:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[500px]"><div class="p-6 border-b border-slate-100 font-bold">입출금 내역</div><div class="overflow-auto flex-1"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 bg-slate-50 sticky top-0 uppercase"><tr><th class="px-6 py-3">일시</th><th class="px-6 py-3">내용</th><th class="px-6 py-3 text-right">금액</th><th class="px-6 py-3">상태</th></tr></thead><tbody class="divide-y divide-slate-100" id="budget-history-list"></tbody></table></div></div></div></div>
+            <div id="page-crm" class="fade-in hidden"><div class="bg-white rounded-xl shadow-sm border border-slate-200"><div class="p-6 border-b border-slate-100"><h3 class="text-xl font-bold text-slate-800">고객 리타겟팅 (CRM)</h3></div><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 bg-slate-50 border-b uppercase"><tr><th class="px-6 py-4">고객ID (Masked)</th><th class="px-6 py-4">발급일</th><th class="px-6 py-4">관심사</th><th class="px-6 py-4">상태</th><th class="px-6 py-4">액션</th></tr></thead><tbody class="divide-y divide-slate-100" id="crm-list-body"></tbody></table></div></div>
+            <div id="page-chat" class="fade-in hidden h-full pb-10"><div class="flex h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><div class="w-1/3 border-r border-slate-100 flex flex-col bg-slate-50"><div class="p-4 border-b border-slate-100 font-bold text-slate-700">대화 목록</div><div class="overflow-y-auto flex-1" id="chat-rooms-list"></div></div><div class="w-2/3 flex flex-col relative"><div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white z-10 shadow-sm"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold" id="chat-header-avatar">?</div><span class="font-bold text-slate-800" id="chat-header-name">대화 상대를 선택하세요</span></div></div><div class="flex-1 overflow-y-auto p-4 space-y-4" id="chat-messages"></div><div class="p-4 bg-white border-t border-slate-100 flex gap-2"><input type="text" id="chat-input" class="flex-1 border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-slate-900" placeholder="메시지 입력..." onkeypress="if(event.key === 'Enter') app.sendMessage()"><button class="bg-slate-900 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-800" onclick="app.sendMessage()"><i class="fas fa-paper-plane"></i></button></div></div></div></div>
+
+        </div>
+    </main>
+</div>
+
+<script src="nav.js"></script>
+
+<script>
+const DB = {
+    init() {
+        // 기존 데이터에 region 필드가 없으면 마이그레이션
+        if (localStorage.getItem('uf25_partners')) {
+            const existingPartners = JSON.parse(localStorage.getItem('uf25_partners'));
+            if (existingPartners.length > 0 && !existingPartners[0].region) {
+                // region 필드 추가 마이그레이션
+                const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
+                existingPartners.forEach((p, i) => {
+                    p.region = regions[i % regions.length];
+                    // 주소도 지역에 맞게 업데이트
+                    if (p.id === 'p_me') {
+                        p.region = '서울';
+                    } else {
+                        p.address = `${p.region}시 ${['강남구', '서초구', '송파구', '마포구', '용산구'][i % 5]} ${i}길`;
+                    }
+                });
+                localStorage.setItem('uf25_partners', JSON.stringify(existingPartners));
+            }
+        }
+        
+        if (!localStorage.getItem('uf25_partners')) {
+            const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
+            const categories = ['이삿짐', '청소', '금융', '보험', '법률', '부동산', '인테리어', '기타'];
+            const list = [];
+            for (let i = 1; i <= 50; i++) {
+                const region = regions[i % regions.length];
+                const category = categories[i % categories.length];
+                list.push({ 
+                    id: `p${i}`, 
+                    name: `제휴사_${i}호`, 
+                    category: category, 
+                    region: region,
+                    manager: `김매니저${i}`, 
+                    contact: `010-1234-56${String(i).padStart(2, '0')}`, 
+                    address: `${region}시 ${['강남구', '서초구', '송파구', '마포구', '용산구'][i % 5]} ${i}길`, 
+                    regNo: `123-45-678${String(i).padStart(2, '0')}`, 
+                    budget: Math.floor(Math.random()*2000000), 
+                    status: 'active', 
+                    joinDate: '2023-01-15' 
+                });
+            }
+            list.unshift({ id: 'p_me', name: '빠른이사(주)', category: '이삿짐', region: '서울', manager: '나대표', contact: '010-9999-8888', address: '서울시 서초구 서초대로', regNo: '111-22-33333', budget: 500000, status: 'active', joinDate: '2023-05-20' });
+            localStorage.setItem('uf25_partners', JSON.stringify(list));
+        }
+        if(!localStorage.getItem('uf25_campaigns')) {
+            const ads = [['굿모닝청소','청소','입주청소 20% 할인','전세 계약', 50000, 'https://via.placeholder.com/400x200?text=Ad+1'],['우리은행','금융','전세자금대출 최저','전세 계약', 100000, 'https://via.placeholder.com/400x200?text=Ad+2'],['현대해상','보험','보증금 반환보증','위험 감지', 80000, 'https://via.placeholder.com/400x200?text=Ad+3']];
+            const list = ads.map((d, i) => ({ id: 100+i, partner: d[0], category: d[1], title: d[2], trigger: d[3], budget: d[4], status: 'pending', img: d[5] }));
+            list.push({ id: 999, partner: '빠른이사(주)', category: '이삿짐', title: '포장이사 특가', trigger: '전세 계약', budget: 100000, status: 'active', imps:1200, clicks:45, img: '' });
+            localStorage.setItem('uf25_campaigns', JSON.stringify(list));
+        }
+        if(!localStorage.getItem('uf25_settlements')) {
+            const s = []; for(let i=0; i<30; i++) s.push({ id: i, date: `2023-12-${(i%30)+1}`, partner: `업체_${i}`, amount: (i+1)*100000, bank: `은행 ${i}00-xxx`, status: i<5?'pending':'completed' });
+            localStorage.setItem('uf25_settlements', JSON.stringify(s));
+        }
+        if(!localStorage.getItem('uf25_triggers')) {
+            const t = [
+                {n:'전/월세 계약 검토', i:'🏠'},
+                {n:'대출 한도 조회', i:'💸'},
+                {n:'이혼 소송 상담', i:'⚖️'},
+                {n:'교통사고 과실 분석', i:'🚗'}
+            ];
+            localStorage.setItem('uf25_triggers', JSON.stringify(t.map((x,i) => ({
+                id:`t${i}`, name:x.n, icon:x.i, count: Math.floor(Math.random()*5000), 
+                trend: Array.from({length: 7}, () => Math.floor(Math.random() * 200) + 50)
+            }))));
+        }
+        if(!localStorage.getItem('uf25_crm')) {
+            const l=[]; for(let i=0;i<10;i++) l.push({id:i, userId:`User_8${i}2${i}`, date:`2023-12-0${i+1}`, interest:'이사', status:'issued'});
+            localStorage.setItem('uf25_crm', JSON.stringify(l));
+        }
+        if(!localStorage.getItem('uf25_chats')) localStorage.setItem('uf25_chats', JSON.stringify([{ id: 'c1', partnerId: 'p_me', partnerName: '빠른이사(주)', messages: [{from:'admin', text:'승인되었습니다.', time:'10:00'}] }]));
+        if(!localStorage.getItem('uf25_charges')) localStorage.setItem('uf25_charges', JSON.stringify([]));
+        if(!localStorage.getItem('uf25_notis')) localStorage.setItem('uf25_notis', JSON.stringify([]));
+
+        if(!localStorage.getItem('uf25_proposals')) {
+            const props = [
+                { id: 1, partner: '마음치유 심리센터', desc: '이혼 소송 고객 대상 심리 상담 패키지 제휴', rate: 15, date: '2023-12-10', status: 'pending' },
+                { id: 2, partner: '굿모닝 렌트카', desc: '사고 대차 우선 배차 서비스 제휴', rate: 10, date: '2023-12-11', status: 'pending' }
+            ];
+            localStorage.setItem('uf25_proposals', JSON.stringify(props));
+        }
+    },
+    get(k) { return JSON.parse(localStorage.getItem(k)); },
+    set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+const app = {
+    role: 'partner',
+    currentPartner: null, // 현재 로그인한 파트너 정보
+    liveInterval: null,
+    charts: {},
+
+    init() { 
+        DB.init(); 
+        this.checkLogin();
+    },
+    
+    checkLogin() {
+        const savedPartner = localStorage.getItem('currentPartner');
+        if (savedPartner) {
+            this.currentPartner = JSON.parse(savedPartner);
+            this.bindEvents();
+            this.updateUIForCurrentPartner();
+            this.navigate('dashboard');
+        } else {
+            this.showLoginPage();
+        }
+    },
+    
+    showLoginPage() {
+        const partners = DB.get('uf25_partners');
+        const partnerOptions = partners.map(p => `<option value="${p.id}">${p.name} (${p.category})</option>`).join('');
+        
+        // 사이드바와 메인 콘텐츠 숨기기
+        document.querySelector('aside').style.display = 'none';
+        document.getElementById('role-switch-btn').style.display = 'none';
+        
+        // body에 직접 로그인 화면 추가
+        const loginScreen = document.createElement('div');
+        loginScreen.id = 'login-screen';
+        loginScreen.className = 'fixed inset-0 bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 flex items-center justify-center z-[9999]';
+        loginScreen.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-96">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Unfold<span class="text-indigo-600">.</span> Biz</h1>
+                    <p class="text-sm text-slate-500">파트너사 로그인</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">파트너사 선택</label>
+                    <select id="login-partner-select" class="w-full border-2 border-slate-300 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-600">
+                        <option value="">-- 파트너사를 선택하세요 --</option>
+                        ${partnerOptions}
+                    </select>
+                </div>
+                
+                <button onclick="app.login()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 px-4 rounded-lg font-bold hover:shadow-lg transition-all mb-4">
+                    로그인
+                </button>
+                
+                <button onclick="app.loginAsAdmin()" class="w-full bg-slate-800 text-white py-3 px-4 rounded-lg font-bold hover:bg-slate-700 transition-all">
+                    🔑 본사 관리자 로그인
+                </button>
+            </div>
+        `;
+        document.body.appendChild(loginScreen);
+    },
+    
+    login() {
+        const selectEl = document.getElementById('login-partner-select');
+        const partnerId = selectEl.value;
+        
+        if (!partnerId) {
+            alert('⚠️ 파트너사를 선택해주세요.');
+            return;
+        }
+        
+        const partner = DB.get('uf25_partners').find(p => p.id === partnerId);
+        this.currentPartner = partner;
+        this.role = 'partner';
+        localStorage.setItem('currentPartner', JSON.stringify(partner));
+        
+        // 메인 UI 복원
+        location.reload();
+    },
+    
+    loginAsAdmin() {
+        this.currentPartner = { id: 'admin', name: '본사 관리자', role: 'admin' };
+        this.role = 'admin';
+        localStorage.setItem('currentPartner', JSON.stringify(this.currentPartner));
+        location.reload();
+    },
+    
+    logout() {
+        localStorage.removeItem('currentPartner');
+        this.currentPartner = null;
+        location.reload();
+    },
+    
+    updateUIForCurrentPartner() {
+        if (!this.currentPartner) return;
+        
+        // 로그인 화면 제거
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.remove();
+        
+        // 사이드바와 역할 전환 버튼 표시
+        document.querySelector('aside').style.display = 'flex';
+        
+        const isAdmin = this.currentPartner.role === 'admin';
+        
+        // 역할 전환 버튼은 관리자에게만 표시
+        document.getElementById('role-switch-btn').classList.toggle('hidden', !isAdmin);
+        
+        if (!isAdmin) {
+            // 파트너 모드 UI
+            this.role = 'partner';
+            document.getElementById('menu-partner').style.display = 'block';
+            document.getElementById('menu-admin').style.display = 'none';
+            document.getElementById('logo-text').innerHTML = 'Unfold<span class="text-emerald-500">.</span> Biz';
+            document.getElementById('user-name').innerText = this.currentPartner.name;
+            document.getElementById('user-role').innerText = 'Partner';
+            document.getElementById('user-avatar').innerText = this.currentPartner.name.charAt(0);
+            document.getElementById('user-avatar').className = 'w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold';
+            document.getElementById('partner-balance-area').style.display = 'block';
+        } else {
+            // 관리자 모드 UI
+            this.role = 'admin';
+            document.getElementById('menu-partner').style.display = 'none';
+            document.getElementById('menu-admin').style.display = 'block';
+            document.getElementById('logo-text').innerHTML = 'Unfold <span class="text-indigo-500">Admin</span>';
+            document.getElementById('user-name').innerText = '관리자 김운영';
+            document.getElementById('user-role').innerText = 'Super Admin';
+            document.getElementById('user-avatar').innerText = 'A';
+            document.getElementById('user-avatar').className = 'w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold';
+            document.getElementById('partner-balance-area').style.display = 'none';
+            document.getElementById('role-switch-btn').classList.remove('hidden');
+            document.getElementById('current-role-label').innerText = '현재: 슈퍼 어드민 모드';
+            document.getElementById('role-switch-btn').classList.add('admin-mode');
+        }
+    },
+    
+    bindEvents() {
+        const budgetRange = document.getElementById('input-budget-range');
+        let budgetDisp = document.getElementById('budget-display');
+        if (budgetRange) {
+            // ensure a visible budget display exists (create if missing)
+            if (!budgetDisp) {
+                budgetDisp = document.createElement('span');
+                budgetDisp.id = 'budget-display';
+                budgetDisp.innerText = `₩ ${parseInt(budgetRange.value).toLocaleString()}`;
+                const wrap = document.createElement('div'); wrap.className = 'text-xs text-slate-500 mt-2'; wrap.innerHTML = '선택 예산: '; wrap.appendChild(budgetDisp);
+                budgetRange.parentNode && budgetRange.parentNode.appendChild(wrap);
+            }
+            const setDisplay = v => { if (budgetDisp) budgetDisp.innerText = `₩ ${parseInt(v).toLocaleString()}`; };
+            setDisplay(budgetRange.value);
+            budgetRange.addEventListener('input', e => setDisplay(e.target.value));
+        }
+        document.getElementById('input-ad-title')?.addEventListener('input', e => document.getElementById('preview-title').innerText = e.target.value || '제목 미리보기');
+
+        // role-switch keyboard accessibility (Enter / Space)
+        const roleBtn = document.getElementById('role-switch-btn');
+        if (roleBtn) {
+            roleBtn.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.toggleRole(); }
+            });
+        }
+
+        // Create Ad button state handling
+        const titleInput = document.getElementById('input-ad-title');
+        const triggerSelect = document.getElementById('input-trigger-select');
+        let createBtn = document.getElementById('create-ad-submit');
+        if(!createBtn) createBtn = document.querySelector('button[onclick="app.createAd()"]');
+        if(createBtn){ createBtn.id = createBtn.id || 'create-ad-submit'; createBtn.disabled = true; }
+        const updateCreateAdButtonState = () => {
+            if (!createBtn) return;
+            const ok = titleInput && titleInput.value.trim() && triggerSelect && triggerSelect.value && triggerSelect.value !== '선택';
+            createBtn.disabled = !ok;
+            createBtn.classList.toggle('opacity-50', !ok);
+            createBtn.classList.toggle('cursor-not-allowed', !ok);
+        };
+        if (titleInput) titleInput.addEventListener('input', updateCreateAdButtonState);
+        if (triggerSelect) triggerSelect.addEventListener('change', updateCreateAdButtonState);
+        // initialize state
+        setTimeout(updateCreateAdButtonState, 50);
+
+        // Notifications render
+        this.renderNoti();
+    },
+
+    toggleRole() {
+        // 관리자만 역할 전환 가능
+        if (this.currentPartner.role !== 'admin') {
+            this.showToast('⚠️ 관리자만 역할을 전환할 수 있습니다.');
+            return;
+        }
+        
+        this.role = this.role === 'partner' ? 'admin' : 'partner';
+        const isPartner = this.role === 'partner';
+        document.getElementById('role-switch-btn').classList.toggle('admin-mode', !isPartner);
+        document.getElementById('current-role-label').innerText = isPartner ? '현재: 파트너사 모드' : '현재: 슈퍼 어드민 모드';
+        document.getElementById('menu-partner').style.display = isPartner ? 'block' : 'none';
+        document.getElementById('menu-admin').style.display = isPartner ? 'none' : 'block';
+        document.getElementById('logo-text').innerHTML = isPartner ? 'Unfold <span class="text-emerald-500">Partners</span>' : 'Unfold <span class="text-indigo-500">Admin</span>';
+        document.getElementById('user-avatar').className = isPartner ? 'w-10 h-10 rounded-full bg-slate-900 text-white flex justify-center items-center font-bold' : 'w-10 h-10 rounded-full bg-indigo-600 text-white flex justify-center items-center font-bold';
+        document.getElementById('user-avatar').innerText = isPartner ? this.currentPartner.name.charAt(0) : 'A';
+        document.getElementById('user-name').innerText = isPartner ? this.currentPartner.name : '관리자 김운영';
+        document.getElementById('user-role').innerText = isPartner ? 'Partner' : 'Super Admin';
+        document.getElementById('partner-balance-area').style.display = isPartner ? 'block' : 'none';
+        
+        if(!isPartner) this.startLiveTraffic(); 
+        else if(this.liveInterval) clearInterval(this.liveInterval);
+
+        this.navigate(isPartner ? 'dashboard' : 'live-traffic');
+    },
+
+    navigate(pageId) {
+        document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById('page-' + pageId);
+        if(target) { target.classList.remove('hidden'); target.classList.add('fade-in'); }
+        document.getElementById('page-title').innerText = pageId.toUpperCase().replace(/-/g, ' ');
+
+        if(pageId === 'dashboard') this.renderDashboard();
+        if(pageId === 'admin-approval') this.renderAdminApproval();
+        if(pageId === 'admin-partners') this.renderPartners();
+        if(pageId === 'admin-trigger') this.renderTriggers();
+        if(pageId === 'admin-settlement') this.renderSettlements();
+        if(pageId === 'admin-partnership-review') this.renderPartnershipReview();
+        if(pageId === 'manage-ad') this.renderManageAd();
+        if(pageId === 'budget') this.renderBudget();
+        if(pageId === 'crm') this.renderCRM();
+        if(pageId === 'chat') this.renderChat();
+        if(pageId === 'create-ad') this.renderCreateAd();
+        if(pageId === 'live-traffic') this.startLiveTraffic();
+        if(pageId === 'partnership-req') { /* No dynamic render */ }
+        // render notifications each navigation
+        this.renderNoti?.();
+    },
+
+    showToast(msg) {
+        const t = document.getElementById('toast'); document.getElementById('toast-msg').innerText = msg;
+        t.classList.remove('translate-x-full'); setTimeout(() => t.classList.add('translate-x-full'), 3000);
+    },
+    openModal(content) {
+        const c = document.getElementById('modal-container');
+        c.innerHTML = `<div class="modal-content p-8 relative"><button onclick="document.getElementById('modal-container').classList.remove('open')" class="absolute top-6 right-6 text-gray-400 hover:text-gray-900 transition"><i class="fas fa-times text-xl"></i></button>${content}</div>`;
+        c.classList.add('open');
+    },
+
+    // 1. DASHBOARD
+    renderDashboard() {
+        const isAdmin = this.role === 'admin';
+        document.getElementById('view-admin-dashboard').classList.toggle('hidden', !isAdmin);
+        document.getElementById('view-partner-dashboard').classList.toggle('hidden', isAdmin);
+        
+        if(isAdmin) {
+            // 어드민 대시보드 렌더링
+            this.renderAdminDashboard();
+        } else {
+            // 파트너 대시보드 렌더링
+            this.renderPartnerDashboard();
+        }
+    },
+    
+    renderPartnerDashboard() {
+        const me = this.currentPartner;
+        
+        // KPI 카드 데이터 생성
+        const views = Math.floor(Math.random() * 5000) + 3000;
+        const coupons = Math.floor(Math.random() * 500) + 200;
+        const conversion = (Math.random() * 15 + 5).toFixed(1);
+        const avgConversion = (Math.random() * 10 + 3).toFixed(1);
+        const activeCampaigns = Math.floor(Math.random() * 5) + 2;
+        const viewsChange = (Math.random() * 40 - 10).toFixed(1);
+        
+        document.getElementById('kpi-p-views').innerText = views.toLocaleString();
+        document.getElementById('kpi-p-views-change').innerText = `${viewsChange > 0 ? '+' : ''}${viewsChange}%`;
+        document.getElementById('kpi-p-coupons').innerText = coupons.toLocaleString();
+        document.getElementById('kpi-p-conversion').innerText = `${conversion}%`;
+        document.getElementById('kpi-p-avg').innerText = `${avgConversion}%`;
+        document.getElementById('kpi-p-campaigns').innerText = activeCampaigns;
+        document.getElementById('kpi-p-budget').innerText = `₩ ${me.budget.toLocaleString()}`;
+        document.getElementById('header-budget').innerText = `₩ ${me.budget.toLocaleString()}`;
+        
+        // 주간 성과 차트 (듀얼 라인)
+        if(this.charts.partner) this.charts.partner.destroy();
+        const ctx = document.getElementById('partnerChart');
+        if(ctx) {
+            const days = ['월', '화', '수', '목', '금', '토', '일'];
+            const viewsData = days.map(() => Math.floor(Math.random() * 1000) + 500);
+            const conversionsData = viewsData.map(v => Math.floor(v * (Math.random() * 0.15 + 0.05)));
+            
+            this.charts.partner = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: '노출수',
+                            data: viewsData,
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '전환수',
+                            data: conversionsData,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', beginAtZero: true },
+                        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        // 지역별 성과 차트 (도넛)
+        if(this.charts.partnerRegion) this.charts.partnerRegion.destroy();
+        const ctxRegion = document.getElementById('partnerRegionChart');
+        if(ctxRegion) {
+            const regions = ['서울', '경기', '인천', '부산', '기타'];
+            const regionData = regions.map(() => Math.floor(Math.random() * 100) + 50);
+            const colors = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899'];
+            
+            this.charts.partnerRegion = new Chart(ctxRegion, {
+                type: 'doughnut',
+                data: {
+                    labels: regions,
+                    datasets: [{
+                        data: regionData,
+                        backgroundColor: colors,
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.label}: ${ctx.parsed}건 (${((ctx.parsed / regionData.reduce((a,b)=>a+b,0)) * 100).toFixed(1)}%)`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 최근 활동 로그
+        const activities = [
+            { icon: '👤', text: '신규 고객 3명이 쿠폰을 발급받았습니다', time: '5분 전', color: 'text-emerald-600' },
+            { icon: '📊', text: '광고 "이사 특가 프로모션"이 승인되었습니다', time: '23분 전', color: 'text-blue-600' },
+            { icon: '💰', text: '예산 ₩500,000이 차감되었습니다', time: '1시간 전', color: 'text-orange-600' },
+            { icon: '⭐', text: `${me.region} 지역에서 노출 순위 3위를 달성했습니다`, time: '2시간 전', color: 'text-purple-600' },
+            { icon: '📱', text: '모바일 접속이 PC 대비 2.3배 증가했습니다', time: '3시간 전', color: 'text-slate-600' }
+        ];
+        
+        const actEl = document.getElementById('partner-recent-activities');
+        if(actEl) {
+            actEl.innerHTML = activities.map(a => `
+                <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition">
+                    <span class="text-2xl">${a.icon}</span>
+                    <div class="flex-1">
+                        <p class="text-sm ${a.color} font-medium">${a.text}</p>
+                        <span class="text-xs text-slate-400">${a.time}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    },
+    
+    renderAdminDashboard() {
+        const pending = DB.get('uf25_campaigns').filter(c => c.status === 'pending').length;
+        const settle = DB.get('uf25_settlements').filter(c => c.status === 'pending').length;
+        const props = DB.get('uf25_proposals').filter(p => p.status === 'pending').length;
+        const allPartners = DB.get('uf25_partners').slice(1);
+        const activePartners = allPartners.filter(p => p.status === 'active').length;
+        
+        // KPI 업데이트
+        document.getElementById('kpi-a-live').innerText = (Math.floor(Math.random() * 2000) + 3000).toLocaleString();
+        document.getElementById('dash-pending-cnt').innerText = pending;
+        document.getElementById('dash-settle-cnt').innerText = settle;
+        document.getElementById('dash-partner-cnt').innerText = props;
+        document.getElementById('kpi-a-partners').innerText = activePartners;
+        document.getElementById('kpi-a-total-partners').innerText = allPartners.length;
+        
+        // 뱃지 업데이트
+        document.getElementById('badge-approval').innerText = pending;
+        document.getElementById('badge-approval').classList.toggle('hidden', pending === 0);
+        document.getElementById('badge-partner-rev').innerText = props;
+        document.getElementById('badge-partner-rev').classList.toggle('hidden', props === 0);
+        
+        // 지역별 매출 차트 (바 차트)
+        if(this.charts.adminRegion) this.charts.adminRegion.destroy();
+        const ctxRegion = document.getElementById('adminRegionChart');
+        if(ctxRegion) {
+            const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
+            const regionSales = regions.map(() => Math.floor(Math.random() * 50000000) + 10000000);
+            
+            this.charts.adminRegion = new Chart(ctxRegion, {
+                type: 'bar',
+                data: {
+                    labels: regions,
+                    datasets: [{
+                        label: '매출 (원)',
+                        data: regionSales,
+                        backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6', '#F43F5E', '#8B5CF6', '#06B6D4'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `₩${(ctx.parsed.y / 1000000).toFixed(1)}M`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (val) => `₩${(val / 1000000).toFixed(0)}M`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 카테고리별 성과 차트 (수평 바)
+        if(this.charts.adminCategory) this.charts.adminCategory.destroy();
+        const ctxCategory = document.getElementById('adminCategoryChart');
+        if(ctxCategory) {
+            const categories = ['이삿짐', '렌트카', '금융', '법률', '인테리어', '보험', '부동산', '세무'];
+            const categoryData = categories.map(() => Math.floor(Math.random() * 1000) + 200);
+            
+            this.charts.adminCategory = new Chart(ctxCategory, {
+                type: 'bar',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        label: '매칭 건수',
+                        data: categoryData,
+                        backgroundColor: '#6366F1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+        
+        // 매칭 부족 영역
+        this.renderMatchingGaps();
+        
+        // TOP 파트너
+        const topPartners = allPartners
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 5)
+            .map((p, i) => ({
+                rank: i + 1,
+                name: p.name,
+                region: p.region,
+                score: Math.floor(Math.random() * 30) + 70
+            }));
+        
+        const topEl = document.getElementById('dash-top-partners');
+        if(topEl) {
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            topEl.innerHTML = topPartners.map(p => `
+                <div class="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-blue-50 rounded-lg hover:shadow-md transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${medals[p.rank - 1]}</span>
+                        <div>
+                            <p class="font-bold text-slate-800 text-sm">${p.name}</p>
+                            <span class="text-xs text-slate-500">${p.region}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-lg font-extrabold text-indigo-600">${p.score}점</div>
+                        <div class="text-xs text-slate-400">성과 점수</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    },
+    
+    renderMatchingGaps() {
+        const el = document.getElementById('dash-opportunity-list');
+        if(!el) return;
+        
+        const gaps = [
+            { t: '반려동물 입주 허가', p: 12, c: 'bg-red-500', txt: 'text-red-600', icon: '🐕' },
+            { t: '상가 임대차 계약', p: 25, c: 'bg-yellow-500', txt: 'text-yellow-600', icon: '🏪' },
+            { t: '외국인 비자 상담', p: 8, c: 'bg-red-500', txt: 'text-red-600', icon: '✈️' },
+            { t: '신축 아파트 분양', p: 35, c: 'bg-orange-500', txt: 'text-orange-600', icon: '🏗️' },
+            { t: '중고차 매매', p: 18, c: 'bg-yellow-500', txt: 'text-yellow-600', icon: '🚗' }
+        ];
+        
+        el.innerHTML = gaps.map(g => `
+            <div class="p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">${g.icon}</span>
+                        <span class="font-bold text-slate-700 text-sm">${g.t}</span>
+                    </div>
+                    <span class="${g.txt} font-bold text-xs px-2 py-1 bg-white rounded-full">매칭률 ${g.p}%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div class="${g.c} h-2 rounded-full transition-all" style="width:${g.p}%"></div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    // 2. LIVE TRAFFIC (Map + Moving Graph)
+    startLiveTraffic() {
+        const container = document.getElementById('live-feed-list'); if(!container) return;
+        if(this.liveInterval) clearInterval(this.liveInterval);
+        if(this.charts.regionLive) this.charts.regionLive.destroy();
+        if(this.charts.timeSeries) this.charts.timeSeries.destroy();
+        
+        // 지역별 데이터 초기화
+        const regions = ['서울', '경기', '인천', '부산', '기타'];
+        const regionColors = {
+            '서울': '#3B82F6', '경기': '#10B981', '인천': '#8B5CF6', 
+            '부산': '#F59E0B', '기타': '#EC4899'
+        };
+        
+        this.liveTrafficData = {
+            regionCounts: { '서울': 82, '경기': 65, '인천': 48, '부산': 43, '기타': 27 },
+            timeSeriesData: { labels: [], datasets: [{ label: '접속자', data: [], borderColor: '#6366F1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }] },
+            liveRows: [],
+            currentFilter: '전체'
+        };
+        
+        // 시계열 데이터 초기화 (최근 10개 시간대)
+        const now = new Date();
+        for(let i = 9; i >= 0; i--) {
+            const time = new Date(now - i * 60000);
+            this.liveTrafficData.timeSeriesData.labels.push(`${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}`);
+            this.liveTrafficData.timeSeriesData.datasets[0].data.push(Math.floor(Math.random() * 50) + 200);
+        }
+        
+        // 지역별 분포 차트 (도넛 차트)
+        const ctxRegion = document.getElementById('regionLiveChart');
+        this.charts.regionLive = new Chart(ctxRegion, {
+            type: 'doughnut',
+            data: {
+                labels: regions,
+                datasets: [{
+                    data: Object.values(this.liveTrafficData.regionCounts),
+                    backgroundColor: Object.values(regionColors),
+                    borderWidth: 3,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
+                    tooltip: { 
+                        callbacks: { 
+                            label: (ctx) => `${ctx.label}: ${ctx.parsed}명 (${((ctx.parsed / Object.values(this.liveTrafficData.regionCounts).reduce((a,b)=>a+b,0)) * 100).toFixed(1)}%)` 
+                        } 
+                    }
+                },
+                animation: { animateRotate: true, animateScale: true }
+            }
+        });
+        
+        // 시간대별 접속 추이 차트 (라인 차트)
+        const ctxTime = document.getElementById('timeSeriesChart');
+        this.charts.timeSeries = new Chart(ctxTime, {
+            type: 'line',
+            data: this.liveTrafficData.timeSeriesData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { font: { size: 9 } } },
+                    x: { ticks: { font: { size: 9 }, maxRotation: 0 } }
+                },
+                elements: { point: { radius: 2 } }
+            }
+        });
+        
+        // 실시간 데이터 생성용 설정
+        const actions = [
+            {t:'전세계약서 검토 요청', p:'빠른이사(주)', c:'이삿짐', icon:'📋'},
+            {t:'교통사고 분석 문의', p:'SK렌터카', c:'렌트카', icon:'🚗'},
+            {t:'대출 한도 조회', p:'우리은행 강남점', c:'금융', icon:'💰'},
+            {t:'법률 자문 신청', p:'법무법인 정의', c:'법률', icon:'⚖️'},
+            {t:'인테리어 견적 요청', p:'홈앤라이프', c:'인테리어', icon:'🏠'},
+            {t:'보험 상담 예약', p:'삼성화재', c:'보험', icon:'🛡️'},
+            {t:'부동산 매물 조회', p:'KB부동산', c:'부동산', icon:'🏢'},
+            {t:'세무 상담 신청', p:'세무법인 광장', c:'세무', icon:'📊'}
+        ];
+        
+        const regionDetails = {
+            '서울': ['강남구', '서초구', '송파구', '강서구', '마포구', '용산구', '종로구', '중구'],
+            '경기': ['성남시', '수원시', '고양시', '용인시', '부천시', '안산시', '평택시', '화성시'],
+            '인천': ['연수구', '남동구', '부평구', '서구', '계양구', '중구'],
+            '부산': ['해운대구', '부산진구', '동래구', '남구', '서구', '중구'],
+            '기타': ['대구 수성구', '광주 서구', '대전 유성구', '울산 남구', '세종시']
+        };
+        
+        // 지역별 카운트 업데이트 함수
+        const updateRegionCards = () => {
+            document.getElementById('region-seoul-count').textContent = this.liveTrafficData.regionCounts['서울'];
+            document.getElementById('region-경기-count').textContent = this.liveTrafficData.regionCounts['경기'];
+            document.getElementById('region-인천-count').textContent = this.liveTrafficData.regionCounts['인천'];
+            document.getElementById('region-부산-count').textContent = this.liveTrafficData.regionCounts['부산'];
+            document.getElementById('region-기타-count').textContent = this.liveTrafficData.regionCounts['기타'];
+        };
+        
+        updateRegionCards();
+        
+        // 실시간 데이터 생성 인터벌
+        this.liveInterval = setInterval(() => {
+            const a = actions[Math.floor(Math.random()*actions.length)];
+            const region = regions[Math.floor(Math.random()*regions.length)];
+            const district = regionDetails[region][Math.floor(Math.random()*regionDetails[region].length)];
+            const location = region === '기타' ? district : `${region} ${district}`;
+            const userName = `User_${Math.floor(Math.random()*9000)+1000}`;
+            const timestamp = new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+            
+            // 테이블에 새 행 추가
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-12 gap-4 p-3 border-b items-center text-sm live-row hover:bg-slate-50 transition-colors';
+            div.dataset.region = region;
+            
+            const regionBadgeColor = {
+                '서울': 'bg-blue-100 text-blue-700',
+                '경기': 'bg-green-100 text-green-700',
+                '인천': 'bg-purple-100 text-purple-700',
+                '부산': 'bg-orange-100 text-orange-700',
+                '기타': 'bg-pink-100 text-pink-700'
+            };
+            
+            div.innerHTML = `
+                <div class="col-span-2 text-slate-400 text-xs font-mono">${timestamp}</div>
+                <div class="col-span-2 text-slate-600 text-xs">${userName}</div>
+                <div class="col-span-2"><span class="px-2 py-1 rounded-full text-xs font-bold ${regionBadgeColor[region]}">${location}</span></div>
+                <div class="col-span-3 text-slate-700"><span class="mr-1">${a.icon}</span>${a.t}</div>
+                <div class="col-span-3 text-emerald-600 font-bold text-xs flex items-center gap-1">
+                    <i class="fas fa-check-circle"></i> ${a.p}
+                </div>
+            `;
+            
+            // 필터링 적용
+            if(this.liveTrafficData.currentFilter === '전체' || this.liveTrafficData.currentFilter === region) {
+                container.insertBefore(div, container.firstChild);
+                if(container.children.length > 30) container.removeChild(container.lastChild);
+            }
+            
+            this.liveTrafficData.liveRows.unshift({region, div, timestamp});
+            if(this.liveTrafficData.liveRows.length > 100) this.liveTrafficData.liveRows.pop();
+            
+            // 지역별 카운트 랜덤 변화
+            const randomRegion = regions[Math.floor(Math.random()*regions.length)];
+            const change = Math.floor(Math.random() * 5) - 2;
+            this.liveTrafficData.regionCounts[randomRegion] = Math.max(10, this.liveTrafficData.regionCounts[randomRegion] + change);
+            
+            updateRegionCards();
+            
+            // 차트 업데이트
+            if(this.charts.regionLive) {
+                this.charts.regionLive.data.datasets[0].data = Object.values(this.liveTrafficData.regionCounts);
+                this.charts.regionLive.update('none');
+            }
+            
+            // 시계열 차트 업데이트 (30초마다)
+            if(Math.random() > 0.95 && this.charts.timeSeries) {
+                const now = new Date();
+                const timeLabel = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+                this.liveTrafficData.timeSeriesData.labels.push(timeLabel);
+                this.liveTrafficData.timeSeriesData.labels.shift();
+                
+                const total = Object.values(this.liveTrafficData.regionCounts).reduce((a,b)=>a+b,0);
+                this.liveTrafficData.timeSeriesData.datasets[0].data.push(total);
+                this.liveTrafficData.timeSeriesData.datasets[0].data.shift();
+                
+                this.charts.timeSeries.update('none');
+            }
+        }, 1500);
+    },
+    
+    filterLiveTrafficByRegion(region) {
+        this.liveTrafficData.currentFilter = region;
+        const container = document.getElementById('live-feed-list');
+        container.innerHTML = '';
+        
+        // 필터링된 행만 표시
+        const filtered = region === '전체' 
+            ? this.liveTrafficData.liveRows 
+            : this.liveTrafficData.liveRows.filter(row => row.region === region);
+        
+        filtered.slice(0, 30).forEach(row => {
+            const cloned = row.div.cloneNode(true);
+            container.appendChild(cloned);
+        });
+    },
+
+    // 3. TRIGGER ANALYSIS (Logic Updated for Specific Partners & Buttons)
+    renderTriggers() {
+        const el = document.getElementById('trigger-list-body'); el.innerHTML='';
+        const triggers = DB.get('uf25_triggers');
+        
+        triggers.forEach(t => {
+            el.innerHTML += `
+                <div class="trigger-card bg-white p-6 rounded-xl shadow-sm cursor-pointer" onclick="app.showTriggerDetail('${t.name}')">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-xl">${t.icon}</span>
+                        <h3 class="font-bold text-lg text-slate-800">${t.name}</h3>
+                    </div>
+                    <div class="h-20 mb-2 relative">
+                        <canvas id="spark-${t.id}"></canvas>
+                    </div>
+                    <div class="text-right text-xs text-slate-400 font-bold">Total: ${t.count.toLocaleString()}</div>
+                </div>
+            `;
+        });
+
+        // Render Sparklines
+        setTimeout(() => {
+            triggers.forEach(t => {
+                const ctx = document.getElementById(`spark-${t.id}`);
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['1','2','3','4','5','6','7'],
+                            datasets: [{
+                                data: t.trend,
+                                borderColor: '#6366F1',
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                fill: false,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                            scales: { x: { display: false }, y: { display: false } },
+                            layout: { padding: 0 }
+                        }
+                    });
+                }
+            });
+        }, 100);
+    },
+
+    showTriggerDetail(name) {
+        // [UPDATED] Define Specific Data Maps (Corrected Partners)
+        const details = {
+            '전/월세 계약 검토': { p1: '빠른이사(주)', p2: '굿모닝청소', p1v: '45%', p2v: '30%', max: '빠른이사(주)' },
+            '대출 한도 조회': { p1: '우리은행', p2: 'KB캐피탈', p1v: '42%', p2v: '28%', max: '우리은행' },
+            '이혼 소송 상담': { p1: '마음치유 심리상담센터', p2: '새출발 가정상담소', p1v: '38%', p2v: '25%', max: '마음치유 심리상담센터' },
+            '교통사고 과실 분석': { p1: 'SK렌터카', p2: '바른 정형외과', p1v: '40%', p2v: '35%', max: 'SK렌터카' }
+        };
+        const d = details[name] || details['전/월세 계약 검토'];
+        const t = DB.get('uf25_triggers').find(x => x.name === name);
+        this.currentTriggerId = t.id; // Store for switching
+
+        this.openModal(`
+            <div class="p-1">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold flex items-center gap-2 text-slate-900">
+                        <span>${t.icon}</span> ${t.name} 상세 분석
+                    </h3>
+                    <div class="flex gap-1 bg-slate-100 p-1 rounded">
+                        <button class="period-btn px-3 py-1 text-xs rounded font-bold" onclick="app.switchTriggerPeriod('daily', this)">일간</button>
+                        <button class="period-btn active px-3 py-1 text-xs rounded font-bold" onclick="app.switchTriggerPeriod('weekly', this)">주간</button>
+                    </div>
+                </div>
+                
+                <p class="text-slate-500 text-sm mb-6">해당 트리거의 발생 추이 및 파트너사 매칭 성과 지표입니다.</p>
+
+                <div class="h-64 mb-8 bg-white">
+                    <canvas id="detailChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="border rounded-xl p-4 text-center">
+                        <div class="text-xs text-slate-400 font-bold mb-1">전환율 (CONVERSION)</div>
+                        <div class="text-2xl font-extrabold text-slate-900">4.8%</div>
+                    </div>
+                    <div class="border rounded-xl p-4 text-center">
+                        <div class="text-xs text-slate-400 font-bold mb-1">주간 발생량</div>
+                        <div class="text-2xl font-extrabold text-indigo-600">${t.count.toLocaleString()}</div>
+                    </div>
+                    <div class="border rounded-xl p-4 text-center">
+                        <div class="text-xs text-slate-400 font-bold mb-1">최다 매칭</div>
+                        <div class="text-xl font-bold text-slate-900">${d.max}</div>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-slate-900 mb-4">연관 파트너사 (Top 2)</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 border rounded-lg">
+                        <div class="flex items-center gap-3"><span class="font-bold text-slate-300">1</span> <span class="font-bold text-slate-800">${d.p1}</span></div>
+                        <span class="text-indigo-600 font-bold text-sm">${d.p1v} 점유</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 border rounded-lg">
+                        <div class="flex items-center gap-3"><span class="font-bold text-slate-300">2</span> <span class="font-bold text-slate-800">${d.p2}</span></div>
+                        <span class="text-blue-500 font-bold text-sm">${d.p2v} 점유</span>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        // Initial Chart Render (Weekly)
+        this.updateTriggerChart('weekly');
+    },
+
+    switchTriggerPeriod(type, btn) {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        this.updateTriggerChart(type);
+    },
+
+    updateTriggerChart(type) {
+        if(this.charts.detail) this.charts.detail.destroy();
+        const ctx = document.getElementById('detailChart');
+        if(!ctx) return;
+
+        // Mock Data based on type
+        const labels = type === 'weekly' 
+            ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] 
+            : ['00h', '04h', '08h', '12h', '16h', '20h', '23h'];
+        const data = type === 'weekly'
+            ? [120, 190, 150, 220, 180, 250, 210] // Weekly Data
+            : [10, 5, 20, 45, 60, 55, 30];       // Daily Data
+
+        this.charts.detail = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '발생 건수',
+                    data: data,
+                    backgroundColor: '#6366F1',
+                    borderRadius: 4,
+                    barThickness: 30
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, 
+                    x: { grid: { display: false } } 
+                },
+                animation: { duration: 500 }
+            }
+        });
+    },
+
+    // --- 4. ADMIN: APPROVAL ---
+    renderAdminApproval() {
+        const list = document.getElementById('admin-approval-list');
+        const ads = DB.get('uf25_campaigns').filter(c => c.status === 'pending');
+        list.innerHTML = ads.length ? '' : '<tr><td colspan="5" class="p-6 text-center text-slate-400">대기 중인 광고가 없습니다.</td></tr>';
+        ads.forEach(c => list.innerHTML += `<tr class="border-b hover:bg-slate-50 cursor-pointer" onclick="app.showAdDetail(${c.id})"><td class="p-4 font-bold">${c.partner}</td><td class="p-4 text-xs">${c.partnerCategory || c.category || '미지정'}</td><td class="p-4">${c.title}</td><td class="p-4 text-slate-500">₩${c.budget.toLocaleString()}</td><td class="p-4 text-blue-600 font-bold text-xs">검토 ></td></tr>`);
+    },
+    showAdDetail(id) {
+        const ad = DB.get('uf25_campaigns').find(c => c.id === id);
+        const imgSrc = ad.img || 'https://via.placeholder.com/400x200';
+        const filterStyle = ad.filter ? `style="filter: ${ad.filter}"` : '';
+        
+        this.openModal(`
+            <div style="max-width: 600px;">
+                <h3 class="font-bold text-lg mb-4">📋 광고 승인 검토</h3>
+                
+                <div class="bg-slate-50 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <span class="text-xs text-slate-500 font-bold block mb-1">업체명</span>
+                            <span class="font-bold text-slate-900">${ad.partner}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-500 font-bold block mb-1">카테고리</span>
+                            <span class="font-bold text-slate-900">${ad.partnerCategory || ad.category || '미지정'}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-500 font-bold block mb-1">타겟 트리거</span>
+                            <span class="font-bold text-slate-900">${ad.trigger}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-500 font-bold block mb-1">예산</span>
+                            <span class="font-bold text-emerald-600">₩${ad.budget.toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-500 font-bold block mb-2">광고 제목</span>
+                        <span class="text-lg font-black text-slate-900">${ad.title}</span>
+                    </div>
+                    <div class="mt-4 text-xs text-slate-500">요청일: ${ad.createdAt || new Date().toLocaleDateString()}</div>
+                </div>
+                
+                <div class="mb-6">
+                    <span class="text-xs text-slate-500 font-bold block mb-2">미리보기 이미지</span>
+                    <div class="h-64 bg-white border-2 border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img src="${imgSrc}" ${filterStyle} class="w-full h-full object-cover">
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="app.processAd(${id},'active')" class="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3 rounded-lg font-bold hover:shadow-lg transition-all">
+                        ✅ 승인하기
+                    </button>
+                    <button onclick="app.processAd(${id},'rejected')" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-lg font-bold hover:shadow-lg transition-all">
+                        ❌ 반려하기
+                    </button>
+                </div>
+            </div>
+        `);
+    },
+    processAd(id, status) {
+        const ads = DB.get('uf25_campaigns'); ads.find(c => c.id === id).status = status; DB.set('uf25_campaigns', ads);
+        document.getElementById('modal-container').classList.remove('open'); this.showToast(status === 'active' ? '승인되었습니다.' : '반려되었습니다.'); this.renderAdminApproval();
+    },
+
+    // --- 5. ADMIN: SETTLEMENT ---
+    renderSettlements() {
+        const list = document.getElementById('settlement-list');
+        const s = DB.get('uf25_settlements');
+        list.innerHTML = '';
+        document.getElementById('settle-pending-text').innerText = `대기: ${s.filter(i => i.status === 'pending').length}건`;
+        s.forEach(i => {
+            const btn = i.status === 'pending' ? `<button onclick="app.showSettlementDetail(${i.id})" class="text-indigo-600 font-bold text-xs border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50">처리하기</button>` : `<span class="text-slate-400 text-xs font-bold">완료됨</span>`;
+            const badge = i.status === 'pending' ? 'badge-pending' : 'badge-active';
+            list.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="px-6 py-4">${i.date}</td><td class="px-6 py-4 font-bold">${i.partner}</td><td class="px-6 py-4">₩${i.amount.toLocaleString()}</td><td class="px-6 py-4 text-xs text-slate-500">${i.bank}</td><td class="px-6 py-4"><span class="badge ${badge}">${i.status==='pending'?'승인대기':'지급완료'}</span></td><td class="px-6 py-4">${btn}</td></tr>`;
+        });
+    },
+    showSettlementDetail(id) {
+        const s = DB.get('uf25_settlements').find(i => i.id === id);
+        this.openModal(`<h3 class="font-bold text-lg mb-4">정산 지급 품의서</h3><div class="space-y-4 mb-6"><div class="flex justify-between border-b pb-2"><span class="text-slate-500">업체명</span><span class="font-bold">${s.partner}</span></div><div class="flex justify-between border-b pb-2"><span class="text-slate-500">지급 금액</span><span class="font-bold text-indigo-600">₩${s.amount.toLocaleString()}</span></div><div class="flex justify-between border-b pb-2"><span class="text-slate-500">입금 계좌</span><span>${s.bank}</span></div><div class="flex justify-between border-b pb-2"><span class="text-slate-500">세금계산서</span><span class="text-emerald-600 font-bold"><i class="fas fa-check"></i> 검증 완료</span></div></div><button onclick="app.completeSettlement(${id})" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-indigo-700">이체 실행</button>`);
+    },
+    completeSettlement(id) {
+        const s = DB.get('uf25_settlements');
+        s.find(i => i.id === id).status = 'completed';
+        DB.set('uf25_settlements', s);
+        document.getElementById('modal-container').classList.remove('open');
+        this.showToast('성공적으로 지급 처리되었습니다.');
+        this.renderSettlements();
+    },
+
+    // --- 6. PARTNER: PARTNERSHIP ---
+    submitPartnership() {
+        const descEl = document.getElementById('prop-desc');
+        const rateEl = document.getElementById('prop-rate');
+        const desc = descEl ? descEl.value.trim() : '';
+        const rate = rateEl ? parseFloat(rateEl.value) : 0;
+        if(!desc || !rate || rate <= 0) {
+            this.showToast('⚠️ 제안 내용과 수수료를 정확히 입력해주세요.');
+            return;
+        }
+        const partner = this.currentPartner || { name: '파트너사', category: '미지정', contact: '미등록' };
+        const p = DB.get('uf25_proposals');
+        p.push({ 
+            id: Date.now(), 
+            partner: partner.name,
+            partnerCategory: partner.category,
+            partnerContact: partner.contact || '미등록',
+            desc: desc, 
+            rate: rate, 
+            date: new Date().toLocaleDateString(), 
+            status: 'pending',
+            submittedAt: new Date().toLocaleString()
+        });
+        DB.set('uf25_proposals', p);
+        if (descEl) descEl.value = '';
+        if (rateEl) rateEl.value = '';
+        this.showToast('✅ 제휴 제안서가 제출되었습니다.');
+        this.navigate('dashboard');
+    },
+    renderPartnershipReview() {
+        const list = document.getElementById('partnership-list');
+        const p = DB.get('uf25_proposals');
+        list.innerHTML = '';
+        document.getElementById('review-count').innerText = `대기: ${p.filter(i=>i.status==='pending').length}건`;
+        p.forEach(i => {
+            const btn = i.status === 'pending' ? `<button onclick="app.showProposalDetail(${i.id})" class="text-indigo-600 font-bold text-xs border px-2 py-1 rounded hover:bg-indigo-50">검토</button>` : `<span class="text-slate-400 text-xs">완료</span>`;
+            list.innerHTML += `<tr class="border-b hover:bg-slate-50 cursor-pointer"><td class="px-6 py-4 font-bold">${i.partner}</td><td class="px-6 py-4 text-xs">${i.partnerCategory || '미지정'}</td><td class="px-6 py-4 text-xs">${i.desc.substring(0,35)}...</td><td class="px-6 py-4 text-indigo-600 font-bold">${i.rate}%</td><td class="px-6 py-4 text-xs">${i.date}</td><td class="px-6 py-4">${btn}</td></tr>`;
+        });
+    },
+    showProposalDetail(id) {
+        const proposal = DB.get('uf25_proposals').find(i => i.id === id);
+        this.openModal(`
+            <div style="max-width: 700px;">
+                <h3 class="font-bold text-lg mb-6">📋 제휴 제안 상세 검토</h3>
+                
+                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold block mb-1">파트너사명</span>
+                            <span class="font-bold text-slate-900 text-lg">${proposal.partner}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold block mb-1">업종/카테고리</span>
+                            <span class="font-bold text-slate-900">${proposal.partnerCategory || '미지정'}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold block mb-1\">연락처</span>
+                            <span class="font-bold text-slate-900">${proposal.partnerContact || '미등록'}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold block mb-1">희망 수수료율</span>
+                            <span class="font-bold text-indigo-600 text-lg">${proposal.rate}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-600 font-bold block mb-1">신청 일시</span>
+                        <span class="text-sm text-slate-700">${proposal.submittedAt || proposal.date}</span>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <span class="text-xs text-slate-600 font-bold block mb-2">📝 제안 내용</span>
+                    <div class="bg-white border-2 border-slate-300 rounded-lg p-5 max-h-64 overflow-y-auto">
+                        <p class="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">${proposal.desc}</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mb-4">
+                    <button onclick="app.approveProposal(${id})" class="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3 px-4 rounded-lg font-bold hover:shadow-lg transition-all text-sm">
+                        ✅ 승인하기
+                    </button>
+                    <button onclick="app.rejectProposal(${id})" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-lg font-bold hover:shadow-lg transition-all text-sm">
+                        ❌ 반려하기
+                    </button>
+                </div>
+                
+                <button onclick="app.showPartnerCompanyInfo('${proposal.partner}')" class="w-full bg-slate-200 text-slate-800 py-2 px-4 rounded-lg font-semibold hover:bg-slate-300 transition-all text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-building"></i> 업체 정보 확인
+                </button>
+            </div>
+        `);
+    },
+    showPartnerCompanyInfo(partnerName) {
+        const partners = DB.get('uf25_partners');
+        const partner = partners.find(p => p.name === partnerName);
+        
+        if (!partner) {
+            this.showToast('⚠️ 업체 정보를 찾을 수 없습니다.');
+            return;
+        }
+        
+        this.openModal(`
+            <div style="max-width: 700px;">
+                <h3 class="font-bold text-lg mb-6">🏢 업체 상세 정보</h3>
+                
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-lg mb-6">
+                    <div class="border-b border-slate-300 pb-6 mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">${partner.name}</h2>
+                        <p class="text-sm text-slate-600">사업자 등록번호: <span class="font-semibold">${partner.regNo}</span></p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold uppercase block mb-2">카테고리</span>
+                            <span class="text-lg font-bold text-indigo-600">${partner.category}</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-600 font-bold uppercase block mb-2">상태</span>
+                            <span class="inline-block px-3 py-1 rounded-full font-semibold text-sm ${partner.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${partner.status === 'active' ? '✅ 활성' : '⏳ 대기'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4 bg-white bg-opacity-60 p-4 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-user text-slate-500 mt-1 w-5"></i>
+                            <div>
+                                <p class="text-xs text-slate-600 font-bold uppercase mb-1">담당자명</p>
+                                <p class="text-sm font-semibold text-slate-900">${partner.manager}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-phone text-slate-500 mt-1 w-5"></i>
+                            <div>
+                                <p class="text-xs text-slate-600 font-bold uppercase mb-1">연락처</p>
+                                <p class="text-sm font-semibold text-slate-900"><a href="tel:${partner.contact}" class="text-indigo-600 hover:underline">${partner.contact}</a></p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-map-marker-alt text-slate-500 mt-1 w-5"></i>
+                            <div>
+                                <p class="text-xs text-slate-600 font-bold uppercase mb-1">주소</p>
+                                <p class="text-sm font-semibold text-slate-900">${partner.address}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-calendar text-slate-500 mt-1 w-5"></i>
+                            <div>
+                                <p class="text-xs text-slate-600 font-bold uppercase mb-1">가입 일자</p>
+                                <p class="text-sm font-semibold text-slate-900">${partner.joinDate}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-wallet text-slate-500 mt-1 w-5"></i>
+                            <div>
+                                <p class="text-xs text-slate-600 font-bold uppercase mb-1">현재 예산</p>
+                                <p class="text-lg font-bold text-indigo-600">₩${partner.budget.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="document.getElementById('modal-container').classList.remove('open')" class="w-full bg-slate-800 text-white py-3 px-4 rounded-lg font-bold hover:bg-slate-700 transition-all">
+                    닫기
+                </button>
+            </div>
+        `);
+    },
+    approveProposal(id) {
+        const p = DB.get('uf25_proposals'); 
+        const proposal = p.find(i=>i.id===id);
+        proposal.status='approved';
+        DB.set('uf25_proposals', p);
+        document.getElementById('modal-container').classList.remove('open');
+        this.showToast('✅ 제휴 제안을 승인했습니다.'); 
+        this.renderPartnershipReview();
+    },
+    rejectProposal(id) {
+        const p = DB.get('uf25_proposals'); 
+        const proposal = p.find(i=>i.id===id);
+        proposal.status='rejected';
+        DB.set('uf25_proposals', p);
+        document.getElementById('modal-container').classList.remove('open');
+        this.showToast('❌ 제휴 제안을 반려했습니다.'); 
+        this.renderPartnershipReview();
+    },
+
+    // --- 7. PARTNER: CRM ---
+    renderCRM() {
+        const l=document.getElementById('crm-list-body'); l.innerHTML='';
+        DB.get('uf25_crm').forEach((d,i)=>{ const btn=d.status==='issued'?`<button onclick="app.openCRMCompose(${i})" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs">제안 보내기</button>`:'-'; l.innerHTML+=`<tr class="border-b"><td class="p-4 text-slate-500">${d.userId.substring(0,6)}**</td><td class="p-4 text-xs">${d.date}</td><td class="p-4 font-bold text-emerald-600">${d.interest}</td><td class="p-4"><span class="badge ${d.status==='sent'?'badge-active':'badge-pending'}">${d.status}</span></td><td class="p-4">${btn}</td></tr>`; });
+    },
+    openCRMCompose(idx) {
+        this.openModal(`<h3 class="font-bold text-lg mb-4">제안 메시지 전송</h3><div class="space-y-4"><input type="text" class="w-full border p-2 rounded" placeholder="제목: 특별 혜택 안내"><textarea class="w-full border p-3 rounded h-32 text-sm" placeholder="메시지 내용을 입력하세요."></textarea><div class="border-2 border-dashed p-4 text-center text-slate-400 rounded cursor-pointer">이미지 첨부</div></div><button onclick="app.sendCRM(${idx})" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold mt-4">발송하기 (1회 차감)</button>`);
+    },
+    sendCRM(idx) { const l=DB.get('uf25_crm'); l[idx].status='sent'; DB.set('uf25_crm',l); document.getElementById('modal-container').classList.remove('open'); this.showToast('메시지 발송 완료'); this.renderCRM(); },
+
+    // --- 8. PARTNER: BUDGET ---
+    chargeBudgetManual() { const a=parseInt(document.getElementById('manual-charge-amount').value); if(!a||a<=0)return alert('금액 입력'); this.chargeBudget(a); },
+    chargeBudget(a) { 
+        const partners = DB.get('uf25_partners');
+        const myPartner = partners.find(p => p.id === this.currentPartner.id);
+        myPartner.budget += a;
+        DB.set('uf25_partners', partners);
+        this.currentPartner.budget = myPartner.budget;
+        localStorage.setItem('currentPartner', JSON.stringify(this.currentPartner));
+        
+        const h=DB.get('uf25_charges'); h.unshift({date:new Date().toLocaleDateString(), partner: this.currentPartner.name, desc:'충전', amount:a, status:'Success'}); DB.set('uf25_charges', h);
+        this.showToast(`₩${a.toLocaleString()} 충전 완료`); this.renderBudget(); 
+    },
+    renderBudget() { 
+        document.getElementById('page-budget-display').innerText=`₩ ${this.currentPartner.budget.toLocaleString()}`; 
+        const l=document.getElementById('budget-history-list'); l.innerHTML=''; 
+        DB.get('uf25_charges').filter(h => h.partner === this.currentPartner.name || !h.partner).forEach(h=>l.innerHTML+=`<tr class="border-b"><td class="p-4 text-xs">${h.date}</td><td class="p-4">${h.desc}</td><td class="p-4 text-right text-emerald-600 font-bold">+${h.amount.toLocaleString()}</td><td class="p-4"><span class="badge badge-active">${h.status}</span></td></tr>`); 
+    },
+
+    // OTHER
+    renderChat() {
+        const listEl = document.getElementById('chat-rooms-list'); listEl.innerHTML = '';
+        const chats = DB.get('uf25_chats');
+        if(this.role === 'partner') {
+            const myChat = chats.find(c => c.partnerId === 'p_me');
+            this.selectedChatId = myChat.id;
+            this.renderChatRoom(); 
+            listEl.innerHTML = `<div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 cursor-pointer"><div class="font-bold text-slate-800">본사 지원팀 (HQ)</div><div class="text-xs text-slate-500">문의하기</div></div>`;
+        } else {
+            chats.forEach(c => listEl.innerHTML += `<div class="p-4 border-b hover:bg-slate-50 cursor-pointer" data-id="${c.id}" onclick="app.selectChat('${c.id}')"><div class="font-bold text-slate-800">${c.partnerName}</div><div class="text-xs text-slate-500 truncate">${c.messages[c.messages.length-1].text}</div></div>`);
+            // remove any previous highlights
+            const items = listEl.querySelectorAll('[data-id]');
+            items.forEach(it => it.classList.remove('bg-emerald-50','border-l-4','border-emerald-500'));
+            // highlight selected or auto-select first
+            if(this.selectedChatId) {
+                const sel = listEl.querySelector(`[data-id="${this.selectedChatId}"]`);
+                if(sel) sel.classList.add('bg-emerald-50','border-l-4','border-emerald-500');
+                this.renderChatRoom();
+            } else if(chats.length) {
+                this.selectedChatId = chats[0].id;
+                const first = listEl.querySelector('[data-id]'); if(first) first.classList.add('bg-emerald-50','border-l-4','border-emerald-500');
+                this.renderChatRoom();
+            }
+        }
+    },
+    selectChat(id) { this.selectedChatId = id; this.renderChat(); this.renderChatRoom(); },
+    renderChatRoom() {
+        if(!this.selectedChatId) {
+            // no chat selected: clear UI
+            const msgEl = document.getElementById('chat-messages'); if(msgEl) msgEl.innerHTML = '<div class="p-6 text-slate-400">대화 상대를 선택하세요</div>';
+            document.getElementById('chat-header-name').innerText = '대화 상대를 선택하세요';
+            return;
+        }
+        const chat = DB.get('uf25_chats').find(c => c.id === this.selectedChatId);
+        if(!chat) {
+            this.selectedChatId = null; this.renderChatRoom(); return;
+        }
+        document.getElementById('chat-header-name').innerText = this.role === 'partner' ? '본사 지원팀' : chat.partnerName;
+        const msgEl = document.getElementById('chat-messages'); msgEl.innerHTML = '';
+        chat.messages.forEach(m => {
+            const isMe = (this.role === 'partner' && m.from === 'partner') || (this.role === 'admin' && m.from === 'admin');
+            msgEl.innerHTML += `<div class="flex ${isMe ? 'justify-end' : 'justify-start'}"><div class="max-w-[70%] p-3 rounded-2xl text-sm ${isMe ? 'bg-slate-900 text-white rounded-br-sm' : 'bg-white border text-slate-700 rounded-bl-sm shadow-sm'}">${m.text}</div></div>`;
+        });
+        msgEl.scrollTop = msgEl.scrollHeight;
+    },
+    sendMessage() {
+        const inp = document.getElementById('chat-input');
+        if(!inp.value.trim()) return;
+        if(!this.selectedChatId) { this.showToast('대화 상대를 선택하세요.'); return; }
+        const chats = DB.get('uf25_chats'); const chat = chats.find(c => c.id === this.selectedChatId);
+        if(!chat) { this.showToast('대화 상대를 유효하지 않습니다.'); return; }
+        const msg = { from: this.role, text: inp.value, time: new Date().toLocaleTimeString() };
+        chat.messages.push(msg);
+        DB.set('uf25_chats', chats); inp.value = ''; this.renderChatRoom();
+
+        // Create a simple notification record so admin sees activity
+        try {
+            const notis = DB.get('uf25_notis') || [];
+            notis.unshift({ id: Date.now(), text: `새 메시지: ${msg.text.substring(0,80)}`, time: new Date().toLocaleTimeString() });
+            DB.set('uf25_notis', notis);
+            this.renderNoti();
+        } catch (e) { /* ignore */ }
+    },
+
+    renderNoti() {
+        const listEl = document.getElementById('noti-list');
+        const dot = document.getElementById('noti-dot');
+        if(!listEl) return;
+        const notis = DB.get('uf25_notis') || [];
+        listEl.innerHTML = notis.length ? '' : '<div class="p-4 text-xs text-slate-400">새 알림이 없습니다.</div>';
+        notis.slice(0,50).forEach(n => listEl.innerHTML += `<div class="p-3 border-b text-sm"><div class="font-bold">${n.text}</div><div class="text-xs text-slate-400">${n.time}</div></div>`);
+        if(dot) dot.classList.toggle('hidden', notis.length===0);
+    },
+
+    exportPartners() {
+        try {
+            const parts = DB.get('uf25_partners') || [];
+            const rows = [['id','name','category','manager','contact','budget','status','joinDate']];
+            parts.forEach(p => rows.push([p.id,p.name,p.category,p.manager,p.contact,p.budget,p.status,p.joinDate]));
+            const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+            const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'partners.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            this.showToast('제휴사 목록을 CSV로 내보냈습니다.');
+        } catch(e){ this.showToast('내보내기 실패'); }
+    },
+    renderPartners(filterRegion = '전체') { 
+        const l = document.getElementById('partner-list-body'); 
+        l.innerHTML = ''; 
+        let partners = DB.get('uf25_partners').slice(1);
+        
+        // 지역 필터링
+        if (filterRegion !== '전체') {
+            if (filterRegion === '기타') {
+                partners = partners.filter(p => !['서울', '경기', '인천', '부산', '대구'].includes(p.region));
+            } else {
+                partners = partners.filter(p => p.region === filterRegion);
+            }
+        }
+        
+        // 지역별로 그룹화
+        const grouped = partners.reduce((acc, p) => {
+            const region = p.region || '미지정';
+            if (!acc[region]) acc[region] = [];
+            acc[region].push(p);
+            return acc;
+        }, {});
+        
+        // 지역별로 렌더링
+        Object.keys(grouped).sort().forEach(region => {
+            // 지역 헤더
+            l.innerHTML += `<tr class="bg-indigo-50"><td colspan="6" class="p-3 font-bold text-indigo-900 text-sm"><i class="fas fa-map-marker-alt mr-2"></i>${region} (${grouped[region].length}개)</td></tr>`;
+            
+            // 해당 지역 파트너들
+            grouped[region].forEach(p => {
+                l.innerHTML += `<tr class="border-b hover:bg-slate-50 cursor-pointer" onclick="app.showPartnerDetail('${p.id}')">
+                    <td class="p-4 font-bold">${p.name}</td>
+                    <td class="p-4 text-xs"><span class="badge badge-loc">${p.region || '미지정'}</span></td>
+                    <td class="p-4 text-xs">${p.manager}</td>
+                    <td class="p-4">₩${p.budget.toLocaleString()}</td>
+                    <td class="p-4"><span class="badge ${p.status==='active'?'badge-active':'badge-pending'}">${p.status}</span></td>
+                    <td class="p-4 text-blue-500 text-xs">상세 ></td>
+                </tr>`;
+            });
+        });
+    },
+    filterPartnersByRegion(region) {
+        // 버튼 활성화 상태 변경
+        document.querySelectorAll('.region-filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-region') === region) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // 파트너 목록 재렌더링
+        this.renderPartners(region);
+    },
+    showPartnerDetail(id) { 
+        const p=DB.get('uf25_partners').find(i=>i.id===id); 
+        this.openModal(`
+            <h3 class="font-bold text-xl mb-4 text-slate-900">${p.name} 상세 정보</h3>
+            <div class="grid grid-cols-2 gap-6 text-sm mb-6">
+                <div><span class="text-slate-400 block mb-1">대표자명</span><div class="font-medium">${p.manager}</div></div>
+                <div><span class="text-slate-400 block mb-1">지역</span><div class="font-medium"><span class="badge badge-loc">${p.region || '미지정'}</span></div></div>
+                <div><span class="text-slate-400 block mb-1">사업자번호</span><div class="font-medium">${p.regNo}</div></div>
+                <div><span class="text-slate-400 block mb-1">연락처</span><div class="font-medium">${p.contact}</div></div>
+                <div><span class="text-slate-400 block mb-1">계약일</span><div class="font-medium">${p.joinDate}</div></div>
+                <div><span class="text-slate-400 block mb-1">카테고리</span><div class="font-medium"><span class="badge badge-cat">${p.category}</span></div></div>
+                <div class="col-span-2"><span class="text-slate-400 block mb-1">주소</span><div class="font-medium">${p.address}</div></div>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl flex justify-between items-center mb-6">
+                <span class="font-bold text-slate-600">현재 보유 예산</span>
+                <span class="text-2xl font-extrabold text-emerald-600">₩${p.budget.toLocaleString()}</span>
+            </div>
+            <div class="flex gap-3">
+                <button class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700" onclick="app.switchToPartner('${p.id}')">
+                    <i class="fas fa-exchange-alt mr-2"></i>이 파트너로 전환
+                </button>
+                <button class="flex-1 bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800" onclick="document.getElementById('modal-container').classList.remove('open')">닫기</button>
+            </div>
+        `); 
+    },
+    switchToPartner(partnerId) {
+        const partner = DB.get('uf25_partners').find(p => p.id === partnerId);
+        this.currentPartner = partner;
+        this.role = 'partner';
+        localStorage.setItem('currentPartner', JSON.stringify(partner));
+        document.getElementById('modal-container').classList.remove('open');
+        this.showToast(`✅ ${partner.name}(으)로 전환되었습니다.`);
+        this.updateUIForCurrentPartner();
+        this.navigate('dashboard');
+    },
+    renderCreateAd() { 
+        // 새 광고 생성 폼 초기화
+        document.getElementById('input-ad-title').value = '';
+        document.getElementById('input-budget-range').value = '50000';
+        document.getElementById('budget-display').innerText = '₩ 50,000';
+        document.getElementById('preview-title-large').innerText = '제목 미리보기';
+        document.getElementById('text-overlay').innerText = '제목 미리보기';
+        document.getElementById('text-overlay').style.opacity = '0';
+        document.getElementById('preview-img-large').src = '';
+        document.getElementById('preview-img-large').classList.add('hidden');
+        document.getElementById('preview-placeholder-large').style.display = 'block';
+        
+        const s=document.getElementById('input-trigger-select'); 
+        s.innerHTML='<option>선택</option>'; 
+        DB.get('uf25_triggers').forEach(t=>s.innerHTML+=`<option>${t.name}</option>`);
+        // Update budget display on input change
+        const titleInput = document.getElementById('input-ad-title');
+        if(titleInput) titleInput.addEventListener('input', e => {
+            document.getElementById('preview-title-large').innerText = e.target.value || '제목 미리보기';
+            document.getElementById('text-overlay').innerText = e.target.value || '제목 미리보기';
+            if(e.target.value) document.getElementById('text-overlay').style.opacity = '1';
+            else document.getElementById('text-overlay').style.opacity = '0';
+        });
+        const budgetInput = document.getElementById('input-budget-range');
+        if(budgetInput) budgetInput.addEventListener('input', e => {
+            document.getElementById('budget-display').innerText = `₩ ${parseInt(e.target.value).toLocaleString()}`;
+        });
+    },
+    handleFileUpload(i) { 
+        if(i.files[0]){
+            const r=new FileReader(); 
+            r.onload=e=>{
+                document.getElementById('preview-img-large').src=e.target.result; 
+                document.getElementById('preview-img-large').classList.remove('hidden');
+                document.getElementById('preview-placeholder-large').style.display = 'none';
+            }; 
+            r.readAsDataURL(i.files[0]);
+        }
+    },
+    applyFilter(f) { 
+        document.getElementById('preview-img-large').style.filter = f;
+        document.documentElement.style.setProperty('--filter-effect', f);
+    },
+    // AI 편집 기능
+    generateAITitle() {
+        try {
+            const triggerSelect = document.getElementById('input-trigger-select');
+            const trigger = triggerSelect ? triggerSelect.value : '전세';
+            
+            const aiTitles = {
+                '전세': ['지금 바로 전세 계약 하면 50% 할인!', '전세 계약, 우리가 완벽하게 도와드려요', '전세 난 이제는 쉬워요 ✨'],
+                '월세': ['월세 찾기가 힘들다면? 지금 확인하세요', '딱 맞는 월세 집 찾기 한 번에 해결!', '월세 매물 특가전 지금 시작'],
+                '대출': ['대출 한도 조회, 30초면 끝!', '내 신용도에 맞는 대출 찾기', '대출 금리 비교하고 최저가 받기'],
+                '이혼': ['이혼 고민, 전문가와 상담하세요', '이혼 절차 가장 쉽게 진행하기', '이혼상담 무료 상담 받기'],
+                '교통사고': ['교통사고 처리 이제 쉽게 끝내세요', '사고 난 적 있으세요? 즉시 상담받기', '교통사고 보험청구 완벽 가이드']
+            };
+            
+            const titles = aiTitles[trigger] || ['AI가 추천하는 제목입니다', '매력적인 제목으로 시작하세요', '클릭을 유도하는 제목 추천'];
+            const selected = titles[Math.floor(Math.random() * titles.length)];
+            
+            const titleInput = document.getElementById('input-ad-title');
+            const previewTitle = document.getElementById('preview-title-large');
+            const textOverlay = document.getElementById('text-overlay');
+            
+            if(titleInput) titleInput.value = selected;
+            if(previewTitle) previewTitle.innerText = selected;
+            if(textOverlay) {
+                textOverlay.innerText = selected;
+                textOverlay.style.opacity = '1';
+            }
+            
+            this.showToast('✨ AI가 제목을 생성했습니다!');
+        } catch(e) {
+            console.error('AI 제목 생성 오류:', e);
+            this.showToast('⚠️ AI 제목 생성에 실패했습니다.');
+        }
+    },
+    suggestBestFilter() {
+        try {
+            const filters = [
+                { name: 'none', label: '기본' },
+                { name: 'grayscale(100%)', label: '흑백' },
+                { name: 'saturate(200%)', label: '비비드' },
+                { name: 'sepia(100%)', label: '세피아' }
+            ];
+            const random = filters[Math.floor(Math.random() * filters.length)];
+            this.applyFilter(random.name);
+            this.showToast(`💡 AI가 "${random.label}" 필터를 추천합니다!`);
+        } catch(e) {
+            console.error('AI 필터 추천 오류:', e);
+            this.showToast('⚠️ AI 필터 추천에 실패했습니다.');
+        }
+    },
+    optimizeBudget() {
+        try {
+            const budgets = [50000, 100000, 150000, 200000, 300000];
+            const optimal = budgets[Math.floor(Math.random() * budgets.length)];
+            const budgetRange = document.getElementById('input-budget-range');
+            const budgetDisplay = document.getElementById('budget-display');
+            
+            if(budgetRange) budgetRange.value = optimal;
+            if(budgetDisplay) budgetDisplay.innerText = `₩ ${optimal.toLocaleString()}`;
+            
+            this.showToast(`💰 AI가 최적 예산을 추천했습니다: ₩${optimal.toLocaleString()}`);
+        } catch(e) {
+            console.error('AI 예산 최적화 오류:', e);
+            this.showToast('⚠️ AI 예산 최적화에 실패했습니다.');
+        }
+    },
+    optimizeFullAd() {
+        try {
+            this.generateAITitle();
+            setTimeout(() => {
+                this.suggestBestFilter();
+                setTimeout(() => {
+                    this.optimizeBudget();
+                    this.showToast('🚀 전체 광고가 AI로 최적화되었습니다!');
+                }, 400);
+            }, 400);
+        } catch(e) {
+            console.error('AI 전체 최적화 오류:', e);
+            this.showToast('⚠️ AI 최적화에 실패했습니다.');
+        }
+    },
+    createAd() { 
+        const title = document.getElementById('input-ad-title').value;
+        const trigger = document.getElementById('input-trigger-select').value;
+        const budget = parseInt(document.getElementById('input-budget-range').value);
+        const image = document.getElementById('preview-img-large').src;
+        
+        if(!title) return this.showToast('⚠️ 제목을 입력하세요');
+        if(!trigger) return this.showToast('⚠️ 트리거를 선택하세요');
+        if(!image) return this.showToast('⚠️ 이미지를 선택하세요');
+        
+        const partner = this.currentPartner;
+        const campaigns = DB.get('uf25_campaigns');
+        
+        campaigns.push({
+            id: Date.now(), 
+            partner: partner.name, 
+            partnerCategory: partner.category,
+            title: title, 
+            trigger: trigger, 
+            budget: budget, 
+            img: image,
+            filter: document.getElementById('preview-img-large').style.filter,
+            status: 'pending', 
+            imps: 0, 
+            clicks: 0,
+            createdAt: new Date().toLocaleDateString(),
+            submittedAt: new Date().toLocaleString()
+        });
+        
+        DB.set('uf25_campaigns', campaigns);
+        this.showToast('✅ 광고 심사를 요청했습니다');
+        
+        // 입력창 초기화
+        document.getElementById('input-ad-title').value = '';
+        document.getElementById('input-budget-range').value = 50000;
+        document.getElementById('preview-img-large').src = '';
+        document.getElementById('preview-img-large').classList.add('hidden');
+        document.getElementById('preview-placeholder-large').style.display = 'block';
+        document.getElementById('budget-display').innerText = '₩ 50,000';
+        
+        this.navigate('manage-ad');
+    },
+    renderManageAd() { 
+        const me = this.currentPartner;
+        const e = document.getElementById('partner-ad-list'); 
+        e.innerHTML = '';
+        const myCampaigns = DB.get('uf25_campaigns').filter(c => c.partner === me.name);
+        if (myCampaigns.length === 0) {
+            e.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-500 text-sm">등록된 광고가 없습니다</td></tr>';
+        } else {
+            myCampaigns.forEach(c=>e.innerHTML+=`<tr class="border-b hover:bg-slate-50" onclick="app.showAdDetail(${c.id})"><td class="p-4 font-bold cursor-pointer">${c.title}</td><td class="p-4"><span class="badge ${c.status==='active'?'badge-active':'badge-pending'}">${c.status}</span></td><td class="p-4">₩${c.budget.toLocaleString()}</td><td class="p-4 text-xs">${c.imps||0}/${c.clicks||0}</td></tr>`);
+        }
+    },
+    toggleNoti() { document.getElementById('noti-dropdown').classList.toggle('hidden'); document.getElementById('noti-dot').classList.add('hidden'); },
+    clearNoti() { 
+        document.getElementById('noti-dropdown').classList.add('hidden'); 
+        try { DB.set('uf25_notis', []); } catch(e) { /* ignore */ }
+        const dot = document.getElementById('noti-dot'); if(dot) dot.classList.add('hidden');
+        this.renderNoti();
+    }
+};
+
+app.init();
+</script>
+
+</body>
+</html>
