@@ -34,12 +34,17 @@ Unfold B2B 시스템 정보:
 
 답변은 친근하고 전문적으로, 이모지를 사용하여 150자 이내로 작성하세요.`;
 
-    // HuggingFace API (무료, API 키 불필요)
-    const response = await fetch('https://api-inference.huggingface.co/models/google/flan-t5-xxl', {
+    // HuggingFace API - 작동하는 최신 모델 사용
+    const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        inputs: `${systemPrompt}\n\n사용자 질문: ${message}\n\n답변:`
+        inputs: `${systemPrompt}\n\n사용자 질문: ${message}\n\n답변:`,
+        parameters: {
+          max_new_tokens: 200,
+          temperature: 0.7,
+          return_full_text: false
+        }
       })
     });
 
