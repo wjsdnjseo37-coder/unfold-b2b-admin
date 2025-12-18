@@ -2692,7 +2692,7 @@ const NETLIFY_API_URL = '/.netlify/functions/chat'; // Netlify는 자동으로 �
 
 const chatbot = {
     isOpen: false,
-    useNetlify: false, // 키워드 기반 시스템 사용 - 100% 안정적
+    useNetlify: true, // OpenAI gpt-4o-mini 사용 (안정적, 고성능)
     
     toggle() {
         this.isOpen = !this.isOpen;
