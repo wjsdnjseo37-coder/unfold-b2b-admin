@@ -12,7 +12,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <style>
-        body { font-family: 'Pretendard', sans-serif; background-color: #F8FAFC; color: #1e293b; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            background-color: #F8FAFC; 
+            color: #1e293b; 
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -36,7 +44,7 @@
 
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
-        .modal-content { background: white; border-radius: 16px; width: 850px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 850px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
 
         .trigger-card { transition: all 0.2s; border: 1px solid #e2e8f0; background: white; border-radius: 12px; padding: 24px; }
         .trigger-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1); border-color: #6366f1; }
@@ -57,6 +65,90 @@
         .region-filter-btn { background-color: #f1f5f9; color: #64748b; }
         .region-filter-btn:hover { background-color: #e2e8f0; }
         .region-filter-btn.active { background-color: #4f46e5; color: white; }
+        
+        /* 반응형 미디어 쿼리 */
+        @media (max-width: 1536px) {
+            .modal-content { width: 95%; max-width: 800px; }
+        }
+        
+        @media (max-width: 1280px) {
+            aside { width: 220px; }
+            .role-switch { padding: 10px 18px; font-size: 13px; bottom: 15px; right: 15px; }
+        }
+        
+        @media (max-width: 1024px) {
+            aside { width: 200px; }
+            .modal-content { width: 95%; padding: 16px; }
+            .trigger-card { padding: 16px; }
+        }
+        
+        @media (max-width: 768px) {
+            aside { 
+                position: fixed; 
+                left: -100%; 
+                transition: left 0.3s; 
+                z-index: 50;
+                width: 240px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            aside.mobile-open { left: 0; }
+            
+            .flex.h-screen { flex-direction: column; }
+            
+            .role-switch { 
+                padding: 8px 16px; 
+                font-size: 12px; 
+                bottom: 10px; 
+                right: 10px;
+            }
+            
+            .modal-content { 
+                width: 95%; 
+                max-width: 100%; 
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            /* 그리드 반응형 */
+            .grid.grid-cols-5 { grid-template-columns: repeat(2, 1fr); }
+            .grid.grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid.grid-cols-3 { grid-template-columns: repeat(1, 1fr); }
+            .grid.grid-cols-2 { grid-template-columns: repeat(1, 1fr); }
+        }
+        
+        @media (max-width: 640px) {
+            body { font-size: 14px; }
+            
+            .grid.grid-cols-5,
+            .grid.grid-cols-4,
+            .grid.grid-cols-3,
+            .grid.grid-cols-2 { 
+                grid-template-columns: 1fr; 
+                gap: 12px;
+            }
+            
+            .role-switch span { display: none; }
+            .role-switch { padding: 10px; width: 44px; height: 44px; border-radius: 50%; }
+            
+            .trigger-card { padding: 12px; }
+            
+            .text-3xl { font-size: 1.5rem; }
+            .text-2xl { font-size: 1.25rem; }
+            .text-xl { font-size: 1.125rem; }
+        }
+        
+        @media (max-width: 480px) {
+            .modal-content { 
+                width: 100%; 
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+                margin: 0;
+            }
+            
+            .p-8 { padding: 1rem; }
+            .p-6 { padding: 0.75rem; }
+        }
     </style>
 </head>
 <body>
