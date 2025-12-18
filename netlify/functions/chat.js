@@ -39,8 +39,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Netlify 환경 변수에서 API 키 가져오기
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    // API 키 직접 설정 (환경 변수 문제 우회)
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAINbNW0iUkaGbpV9PWN-SSflJ281C-DH0';
 
     if (!GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY not found');
