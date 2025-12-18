@@ -2686,13 +2686,13 @@ app.init();
 </div>
 
 <script>
-// Vercel Serverless Function을 통한 Gemini API 사용
-// Vercel에서 환경 변수로 API 키 관리
-const VERCEL_API_URL = 'https://YOUR-VERCEL-APP.vercel.app/api/chat'; // 배포 후 URL로 변경
+// Netlify Function을 통한 Gemini API 사용
+// 배포 후 자동으로 작동 (환경 변수 설정 필요)
+const NETLIFY_API_URL = '/.netlify/functions/chat'; // Netlify는 자동으로 경로 설정
 
 const chatbot = {
     isOpen: false,
-    useVercel: true, // Vercel API 사용
+    useNetlify: true, // Netlify Function 사용
     
     toggle() {
         this.isOpen = !this.isOpen;
@@ -2726,9 +2726,9 @@ const chatbot = {
         try {
             let response;
             
-            // Vercel API로 LLM 호출
-            if (this.useVercel) {
-                response = await this.getVercelResponse(message);
+            // Netlify Function으로 LLM 호출
+            if (this.useNetlify) {
+                response = await this.getNetlifyResponse(message);
             } else {
                 // Fallback: 키워드 기반 응답
                 await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
@@ -2786,6 +2786,35 @@ const chatbot = {
     hideTyping() {
         const typingDiv = document.getElementById('typing-indicator');
         if (typingDiv) typingDiv.remove();
+    },
+    
+    async getNetlifyResponse(message) {
+        try {
+            console.log('🚀 Netlify Function 호출 중...');
+            
+            const response = await fetch(NETLIFY_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('❌ Netlify Function 오류:', errorData);
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ AI 응답 받음:', data.response);
+            
+            return data.response;
+        } catch (error) {
+            console.error('❌ Netlify Function 호출 실패:', error);
+            // Fallback to keyword response
+            return this.getKeywordResponse(message);
+        }
     },
     
     async getVercelResponse(message) {
