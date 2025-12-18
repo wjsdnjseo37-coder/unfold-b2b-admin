@@ -149,6 +149,182 @@
             .p-8 { padding: 1rem; }
             .p-6 { padding: 0.75rem; }
         }
+        
+        /* AI 챗봇 스타일 */
+        .chatbot-button {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            z-index: 9998;
+            transition: all 0.3s ease;
+        }
+        .chatbot-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+        }
+        .chatbot-button i {
+            color: white;
+            font-size: 28px;
+        }
+        .chatbot-window {
+            position: fixed;
+            bottom: 100px;
+            right: 24px;
+            width: 380px;
+            max-width: calc(100vw - 48px);
+            height: 550px;
+            max-height: calc(100vh - 150px);
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chatbot-window.active {
+            display: flex;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chatbot-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .chatbot-message {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .chatbot-message.user {
+            flex-direction: row-reverse;
+        }
+        .chatbot-message .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .chatbot-message.user .avatar {
+            background: #10b981;
+        }
+        .chatbot-message .bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            margin: 0 10px;
+            word-wrap: break-word;
+        }
+        .chatbot-message.bot .bubble {
+            background: white;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+        }
+        .chatbot-message.user .bubble {
+            background: #667eea;
+            color: white;
+        }
+        .chatbot-input-area {
+            border-top: 1px solid #e2e8f0;
+            padding: 16px;
+            display: flex;
+            gap: 10px;
+            background: white;
+        }
+        .chatbot-input {
+            flex: 1;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 10px 16px;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .chatbot-input:focus {
+            border-color: #667eea;
+        }
+        .chatbot-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .chatbot-send:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+        .typing-indicator {
+            display: none;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            margin: 0 10px;
+            width: fit-content;
+        }
+        .typing-indicator.active {
+            display: block;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background: #94a3b8;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
     </style>
 </head>
 <body>
@@ -2464,6 +2640,216 @@ const app = {
 };
 
 app.init();
+</script>
+
+<!-- AI 챗봇 -->
+<div class="chatbot-button" onclick="chatbot.toggle()">
+    <i class="fas fa-robot"></i>
+</div>
+
+<div id="chatbot-window" class="chatbot-window">
+    <div class="chatbot-header">
+        <div>
+            <div style="font-weight: bold; font-size: 16px;">🤖 Unfold AI 어시스턴트</div>
+            <div style="font-size: 12px; opacity: 0.9; margin-top: 2px;">24시간 자동 응답</div>
+        </div>
+        <i class="fas fa-times" style="cursor: pointer; font-size: 20px;" onclick="chatbot.close()"></i>
+    </div>
+    
+    <div id="chatbot-messages" class="chatbot-messages">
+        <div class="chatbot-message bot">
+            <div class="avatar"><i class="fas fa-robot"></i></div>
+            <div class="bubble">
+                안녕하세요! 👋<br>Unfold B2B 어드민 AI 어시스턴트입니다.<br><br>
+                무엇을 도와드릴까요?<br>
+                • 광고 등록/관리<br>
+                • 예산 문의<br>
+                • 정산 관련<br>
+                • 트리거 설정<br>
+                • 기타 문의
+            </div>
+        </div>
+    </div>
+    
+    <div class="chatbot-input-area">
+        <input 
+            type="text" 
+            id="chatbot-input" 
+            class="chatbot-input" 
+            placeholder="메시지를 입력하세요..."
+            onkeypress="if(event.key==='Enter') chatbot.send()"
+        />
+        <button class="chatbot-send" onclick="chatbot.send()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+const chatbot = {
+    isOpen: false,
+    
+    toggle() {
+        this.isOpen = !this.isOpen;
+        const window = document.getElementById('chatbot-window');
+        if (this.isOpen) {
+            window.classList.add('active');
+            document.getElementById('chatbot-input').focus();
+        } else {
+            window.classList.remove('active');
+        }
+    },
+    
+    close() {
+        this.isOpen = false;
+        document.getElementById('chatbot-window').classList.remove('active');
+    },
+    
+    send() {
+        const input = document.getElementById('chatbot-input');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        // 사용자 메시지 표시
+        this.addMessage(message, 'user');
+        input.value = '';
+        
+        // 타이핑 인디케이터 표시
+        this.showTyping();
+        
+        // AI 응답 (500-1500ms 후)
+        const delay = 500 + Math.random() * 1000;
+        setTimeout(() => {
+            this.hideTyping();
+            const response = this.getAIResponse(message);
+            this.addMessage(response, 'bot');
+            
+            // Supabase에 채팅 저장
+            this.saveChatToSupabase(message, response);
+        }, delay);
+    },
+    
+    addMessage(text, sender) {
+        const messagesDiv = document.getElementById('chatbot-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chatbot-message ${sender}`;
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.innerHTML = sender === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML = text.replace(/\n/g, '<br>');
+        
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(bubble);
+        messagesDiv.appendChild(messageDiv);
+        
+        // 스크롤 최하단으로
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    },
+    
+    showTyping() {
+        const messagesDiv = document.getElementById('chatbot-messages');
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'typing-indicator';
+        typingDiv.className = 'chatbot-message bot';
+        typingDiv.innerHTML = `
+            <div class="avatar"><i class="fas fa-robot"></i></div>
+            <div class="typing-indicator active">
+                <span></span><span></span><span></span>
+            </div>
+        `;
+        messagesDiv.appendChild(typingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    },
+    
+    hideTyping() {
+        const typingDiv = document.getElementById('typing-indicator');
+        if (typingDiv) typingDiv.remove();
+    },
+    
+    getAIResponse(message) {
+        const msg = message.toLowerCase();
+        
+        // 광고 관련
+        if (msg.includes('광고') || msg.includes('등록') || msg.includes('캠페인')) {
+            return '광고 등록은 "광고 만들기" 메뉴에서 가능합니다! 📱\n\n1. 이미지 업로드\n2. 제목 입력\n3. 트리거 선택\n4. 예산 설정\n5. 제출하기\n\nAI 자동 최적화 기능도 사용해보세요! ✨';
+        }
+        
+        // 예산 관련
+        if (msg.includes('예산') || msg.includes('비용') || msg.includes('가격')) {
+            return '광고 예산은 최소 50,000원부터 시작됩니다. 💰\n\n추천 예산:\n• 소상공인: 50,000원\n• 중소기업: 100,000~200,000원\n• 대기업: 300,000원 이상\n\n예산에 따라 노출 횟수가 증가합니다!';
+        }
+        
+        // 정산 관련
+        if (msg.includes('정산') || msg.includes('환불') || msg.includes('결제')) {
+            return '정산은 매월 말일에 진행됩니다. 💳\n\n"정산 관리" 메뉴에서:\n• 정산 내역 확인\n• 정산 요청\n• 정산 상태 추적\n\n문의사항은 02-1234-5678로 연락주세요!';
+        }
+        
+        // 트리거 관련
+        if (msg.includes('트리거') || msg.includes('조건')) {
+            return '트리거는 광고 노출 조건입니다! 🎯\n\n사용 가능한 트리거:\n• 🏪 매장 방문 시\n• 🎂 생일 축하\n• 🎉 이벤트 참여\n• 🛒 구매 완료\n• 📍 위치 기반\n\n적절한 트리거 선택이 전환율을 높입니다!';
+        }
+        
+        // 대시보드 관련
+        if (msg.includes('대시보드') || msg.includes('통계') || msg.includes('현황')) {
+            return '대시보드에서 실시간 통계를 확인하세요! 📊\n\n확인 가능한 정보:\n• 총 광고 수\n• 노출/클릭 수\n• 전환율\n• 예산 사용 현황\n• 월별 트렌드\n\n데이터는 실시간으로 업데이트됩니다!';
+        }
+        
+        // 인사
+        if (msg.includes('안녕') || msg.includes('hi') || msg.includes('hello')) {
+            return '안녕하세요! 😊\n저는 24시간 언제든 도와드릴 준비가 되어 있습니다.\n\n무엇을 도와드릴까요?';
+        }
+        
+        // 감사
+        if (msg.includes('고마') || msg.includes('감사') || msg.includes('thanks')) {
+            return '천만에요! 🙏\n더 궁금한 것이 있으면 언제든 물어보세요!';
+        }
+        
+        // 회원가입/로그인
+        if (msg.includes('회원가입') || msg.includes('가입') || msg.includes('등록')) {
+            return '파트너사 등록을 원하시나요? 🎉\n\n로그인 화면에서 "새 파트너사 등록하기"를 선택하시면:\n• 업체 정보 입력\n• 사업자 등록번호 등록\n• 담당자 정보 입력\n\n승인 후 바로 이용 가능합니다!';
+        }
+        
+        // 문의
+        if (msg.includes('문의') || msg.includes('연락') || msg.includes('전화')) {
+            return '문의하시겠어요? 📞\n\n고객센터:\n• 전화: 02-1234-5678\n• 이메일: support@unfold.biz\n• 운영시간: 평일 09:00-18:00\n\n긴급 문의는 이 챗봇을 이용해주세요! (24시간 응답)';
+        }
+        
+        // 도움말
+        if (msg.includes('도움') || msg.includes('help') || msg.includes('사용법')) {
+            return '도움이 필요하신가요? 🤝\n\n다음과 같이 물어보세요:\n• "광고는 어떻게 등록하나요?"\n• "예산은 얼마가 필요한가요?"\n• "정산은 언제 되나요?"\n• "트리거가 뭔가요?"\n\n구체적으로 질문하시면 더 정확히 답변드릴게요!';
+        }
+        
+        // 기본 응답
+        return '죄송하지만 정확히 이해하지 못했어요. 😅\n\n다음 주제로 질문해주세요:\n• 광고 등록/관리\n• 예산 및 정산\n• 트리거 설정\n• 대시보드 통계\n• 회원가입\n\n혹은 "도움말"을 입력해보세요!';
+    },
+    
+    async saveChatToSupabase(userMessage, botResponse) {
+        try {
+            const partner = app.currentPartner;
+            if (!partner) return;
+            
+            const { error } = await supabaseClient
+                .from('chats')
+                .insert([{
+                    partner_id: partner.id,
+                    user_message: userMessage,
+                    bot_response: botResponse,
+                    timestamp: new Date().toISOString()
+                }]);
+            
+            if (error) {
+                console.warn('채팅 저장 실패 (테이블이 없을 수 있음):', error);
+            }
+        } catch (e) {
+            console.warn('채팅 저장 오류:', e);
+        }
+    }
+};
 </script>
 
 </body>
