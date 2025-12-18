@@ -2814,11 +2814,13 @@ Unfold B2B 시스템 정보:
 - 비즈니스 외 질문은 정중히 거절하고 시스템 관련 질문을 유도
 - 필요시 메뉴 경로나 단계별 안내 제공`;
 
-            // CORS 프록시를 통한 API 호출
-            const proxyUrl = 'https://corsproxy.io/?';
-            const apiUrl = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+            // AllOrigins CORS 프록시 사용
+            const apiEndpoint = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiEndpoint)}`;
             
-            const response = await fetch(proxyUrl + encodeURIComponent(apiUrl), {
+            console.log('🌐 Gemini API 호출 중...');
+            
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2838,14 +2840,16 @@ Unfold B2B 시스템 정보:
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Gemini API 오류 상세:', errorText);
+                console.error('❌ Gemini API 오류 상세:', errorText);
                 throw new Error(`Gemini API 오류: ${response.status}`);
             }
 
             const data = await response.json();
+            console.log('✅ Gemini API 응답 받음:', data);
             
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                 const text = data.candidates[0].content.parts[0].text;
+                console.log('💬 AI 응답:', text);
                 return text.trim();
             } else {
                 throw new Error('Gemini API 응답 형식 오류');
