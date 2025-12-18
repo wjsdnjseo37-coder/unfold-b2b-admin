@@ -2692,7 +2692,7 @@ const NETLIFY_API_URL = '/.netlify/functions/chat'; // Netlify는 자동으로 �
 
 const chatbot = {
     isOpen: false,
-    useNetlify: false, // 키워드 기반 시스템 사용 (안정적)
+    useNetlify: true, // HuggingFace API 사용 (무료, 키 불필요)
     
     toggle() {
         this.isOpen = !this.isOpen;
