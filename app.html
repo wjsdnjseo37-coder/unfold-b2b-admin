@@ -2686,8 +2686,14 @@ app.init();
 </div>
 
 <script>
+// Google Gemini API 설정 (무료 티어)
+// API 키는 https://makersuite.google.com/app/apikey 에서 발급받으세요
+const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; // 여기에 발급받은 API 키를 입력하세요
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
 const chatbot = {
     isOpen: false,
+    useGemini: GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE', // API 키가 설정되면 자동으로 LLM 사용
     
     toggle() {
         this.isOpen = !this.isOpen;
@@ -2705,7 +2711,7 @@ const chatbot = {
         document.getElementById('chatbot-window').classList.remove('active');
     },
     
-    send() {
+    async send() {
         const input = document.getElementById('chatbot-input');
         const message = input.value.trim();
         
@@ -2718,16 +2724,28 @@ const chatbot = {
         // 타이핑 인디케이터 표시
         this.showTyping();
         
-        // AI 응답 (500-1500ms 후)
-        const delay = 500 + Math.random() * 1000;
-        setTimeout(() => {
+        try {
+            let response;
+            
+            // LLM 사용 가능하면 Gemini API 호출
+            if (this.useGemini) {
+                response = await this.getGeminiResponse(message);
+            } else {
+                // API 키 없으면 기존 키워드 기반 응답
+                await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                response = this.getKeywordResponse(message);
+            }
+            
             this.hideTyping();
-            const response = this.getAIResponse(message);
             this.addMessage(response, 'bot');
             
             // Supabase에 채팅 저장
             this.saveChatToSupabase(message, response);
-        }, delay);
+        } catch (error) {
+            console.error('챗봇 응답 오류:', error);
+            this.hideTyping();
+            this.addMessage('죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요. 🙏', 'bot');
+        }
     },
     
     addMessage(text, sender) {
@@ -2771,7 +2789,61 @@ const chatbot = {
         if (typingDiv) typingDiv.remove();
     },
     
-    getAIResponse(message) {
+    async getGeminiResponse(message) {
+        try {
+            const systemPrompt = `당신은 Unfold B2B 어드민 시스템의 AI 어시스턴트입니다. 파트너사들의 문의에 친절하고 정확하게 답변해주세요.
+
+시스템 정보:
+- 광고 등록: "광고 만들기" 메뉴에서 이미지 업로드, 제목 입력, 트리거 선택, 예산 설정
+- 예산: 최소 50,000원부터 (소상공인 50,000원, 중소기업 100,000~200,000원, 대기업 300,000원 이상)
+- 정산: 매월 말일 진행, "정산 관리" 메뉴에서 확인
+- 트리거: 매장 방문, 생일, 이벤트, 구매 완료, 위치 기반 등
+- 연락처: 전화 010-8274-0440, 이메일 wjsdnjseo37@gmail.com, 운영시간 평일 09:00-18:00
+
+답변 스타일:
+- 이모지 사용
+- 친근하고 전문적인 톤
+- 구체적이고 실용적인 정보 제공
+- 필요시 메뉴 경로나 단계별 안내`;
+
+            const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `${systemPrompt}\n\n사용자 질문: ${message}`
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 500,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Gemini API 오류: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const text = data.candidates[0].content.parts[0].text;
+                return text.trim();
+            } else {
+                throw new Error('Gemini API 응답 형식 오류');
+            }
+        } catch (error) {
+            console.error('Gemini API 호출 실패:', error);
+            // Fallback to keyword-based response
+            return this.getKeywordResponse(message);
+        }
+    },
+    
+    getKeywordResponse(message) {
         const msg = message.toLowerCase();
         
         // 광고 관련
