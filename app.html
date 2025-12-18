@@ -2686,14 +2686,13 @@ app.init();
 </div>
 
 <script>
-// Google Gemini API 설정 (무료 티어)
-// API 키는 https://makersuite.google.com/app/apikey 에서 발급받으세요
-const GEMINI_API_KEY = 'AIzaSyAINbNW0iUkaGbpV9PWN-SSflJ281C-DH0';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+// Vercel Serverless Function을 통한 Gemini API 사용
+// Vercel에서 환경 변수로 API 키 관리
+const VERCEL_API_URL = 'https://YOUR-VERCEL-APP.vercel.app/api/chat'; // 배포 후 URL로 변경
 
 const chatbot = {
     isOpen: false,
-    useGemini: GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE', // API 키가 설정되면 자동으로 LLM 사용
+    useVercel: true, // Vercel API 사용
     
     toggle() {
         this.isOpen = !this.isOpen;
@@ -2727,11 +2726,11 @@ const chatbot = {
         try {
             let response;
             
-            // LLM 사용 가능하면 Gemini API 호출
-            if (this.useGemini) {
-                response = await this.getGeminiResponse(message);
+            // Vercel API로 LLM 호출
+            if (this.useVercel) {
+                response = await this.getVercelResponse(message);
             } else {
-                // API 키 없으면 기존 키워드 기반 응답
+                // Fallback: 키워드 기반 응답
                 await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
                 response = this.getKeywordResponse(message);
             }
@@ -2787,6 +2786,35 @@ const chatbot = {
     hideTyping() {
         const typingDiv = document.getElementById('typing-indicator');
         if (typingDiv) typingDiv.remove();
+    },
+    
+    async getVercelResponse(message) {
+        try {
+            console.log('🚀 Vercel API 호출 중...');
+            
+            const response = await fetch(VERCEL_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('❌ Vercel API 오류:', errorData);
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ AI 응답 받음:', data.response);
+            
+            return data.response;
+        } catch (error) {
+            console.error('❌ Vercel API 호출 실패:', error);
+            // Fallback to keyword response
+            return this.getKeywordResponse(message);
+        }
     },
     
     async getGeminiResponse(message) {
