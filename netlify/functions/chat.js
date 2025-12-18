@@ -1,5 +1,5 @@
 // Netlify Function - Gemini API Proxy
-const fetch = require('node-fetch');
+// Using built-in fetch (available in Node 18+)
 
 exports.handler = async (event, context) => {
   // CORS 헤더
