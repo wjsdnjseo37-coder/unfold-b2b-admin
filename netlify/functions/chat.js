@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
     }
 
     // API 키 직접 설정 (환경 변수 문제 우회)
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAINbNW0iUkaGbpV9PWN-SSflJ281C-DH0';
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyD8exJW59xXA596ehLKN2V9YM2RFCmk2u4';
 
     if (!GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY not found');
