@@ -528,26 +528,109 @@
 
 <script>
 const DB = {
-    init() {
-        // 기존 데이터에 region 필드가 없으면 마이그레이션
-        if (localStorage.getItem('uf25_partners')) {
-            const existingPartners = JSON.parse(localStorage.getItem('uf25_partners'));
-            if (existingPartners.length > 0 && !existingPartners[0].region) {
-                // region 필드 추가 마이그레이션
-                const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
-                existingPartners.forEach((p, i) => {
-                    p.region = regions[i % regions.length];
-                    // 주소도 지역에 맞게 업데이트
-                    if (p.id === 'p_me') {
-                        p.region = '서울';
-                    } else {
-                        p.address = `${p.region}시 ${['강남구', '서초구', '송파구', '마포구', '용산구'][i % 5]} ${i}길`;
-                    }
-                });
-                localStorage.setItem('uf25_partners', JSON.stringify(existingPartners));
-            }
+    cache: {}, // 캐시 저장소
+    
+    async init() {
+        console.log('🚀 Initializing Supabase DB...');
+        
+        // Supabase에서 데이터 로드
+        try {
+            await this.loadFromSupabase();
+            console.log('✅ Supabase data loaded successfully');
+        } catch (error) {
+            console.error('❌ Failed to load from Supabase:', error);
+            // 실패 시 localStorage fallback
+            this.loadFromLocalStorage();
+        }
+    },
+    
+    async loadFromSupabase() {
+        // Partners 로드
+        const { data: partners, error: partnersError } = await supabaseClient
+            .from('partners')
+            .select('*')
+            .order('created_at', { ascending: true });
+        
+        if (partnersError) throw partnersError;
+        
+        // 파트너가 없으면 샘플 데이터 생성
+        if (!partners || partners.length === 0) {
+            await this.seedSampleData();
+            return await this.loadFromSupabase(); // 재로드
         }
         
+        // 캐시에 저장 (기존 형식으로 변환)
+        this.cache.uf25_partners = partners.map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            region: p.region,
+            manager: p.manager,
+            contact: p.contact,
+            address: p.address,
+            regNo: p.reg_no,
+            budget: Number(p.budget),
+            status: p.status,
+            joinDate: p.join_date,
+            role: p.role
+        }));
+        
+        // Campaigns 로드
+        const { data: campaigns } = await supabaseClient.from('campaigns').select('*');
+        this.cache.uf25_campaigns = campaigns || [];
+        
+        // Settlements 로드
+        const { data: settlements } = await supabaseClient.from('settlements').select('*');
+        this.cache.uf25_settlements = settlements || [];
+        
+        // Proposals 로드
+        const { data: proposals } = await supabaseClient.from('proposals').select('*');
+        this.cache.uf25_proposals = proposals || [];
+        
+        // Triggers 로드
+        const { data: triggers } = await supabaseClient.from('triggers').select('*');
+        this.cache.uf25_triggers = triggers || [];
+        
+        // 기타 데이터는 localStorage 사용
+        this.cache.uf25_crm = this.getFromLocalStorage('uf25_crm') || [];
+        this.cache.uf25_chats = this.getFromLocalStorage('uf25_chats') || [];
+        this.cache.uf25_charges = this.getFromLocalStorage('uf25_charges') || [];
+        this.cache.uf25_notis = this.getFromLocalStorage('uf25_notis') || [];
+    },
+    
+    async seedSampleData() {
+        console.log('📦 Seeding sample data...');
+        
+        // 샘플 파트너 생성
+        const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
+        const categories = ['이삿짐', '청소', '금융', '보험', '법률', '부동산', '인테리어', '기타'];
+        
+        const partners = [];
+        for (let i = 1; i <= 10; i++) {
+            partners.push({
+                name: `제휴사_${i}호`,
+                category: categories[i % categories.length],
+                region: regions[i % regions.length],
+                manager: `김매니저${i}`,
+                contact: `010-1234-56${String(i).padStart(2, '0')}`,
+                address: `${regions[i % regions.length]}시 강남구 ${i}길`,
+                reg_no: `123-45-678${String(i).padStart(2, '0')}`,
+                budget: Math.floor(Math.random() * 2000000),
+                status: 'active',
+                role: 'partner'
+            });
+        }
+        
+        // Supabase에 삽입
+        const { error } = await supabaseClient.from('partners').insert(partners);
+        if (error) throw error;
+        
+        console.log('✅ Sample data seeded');
+    },
+    
+    loadFromLocalStorage() {
+        console.log('⚠️ Using localStorage fallback');
+        // 기존 localStorage 로직
         if (!localStorage.getItem('uf25_partners')) {
             const regions = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종'];
             const categories = ['이삿짐', '청소', '금융', '보험', '법률', '부동산', '인테리어', '기타'];
@@ -562,56 +645,42 @@ const DB = {
                     region: region,
                     manager: `김매니저${i}`, 
                     contact: `010-1234-56${String(i).padStart(2, '0')}`, 
-                    address: `${region}시 ${['강남구', '서초구', '송파구', '마포구', '용산구'][i % 5]} ${i}길`, 
+                    address: `${region}시 강남구 ${i}길`, 
                     regNo: `123-45-678${String(i).padStart(2, '0')}`, 
                     budget: Math.floor(Math.random()*2000000), 
                     status: 'active', 
-                    joinDate: '2023-01-15' 
+                    joinDate: '2023-01-15',
+                    role: 'partner'
                 });
             }
-            list.unshift({ id: 'p_me', name: '빠른이사(주)', category: '이삿짐', region: '서울', manager: '나대표', contact: '010-9999-8888', address: '서울시 서초구 서초대로', regNo: '111-22-33333', budget: 500000, status: 'active', joinDate: '2023-05-20' });
             localStorage.setItem('uf25_partners', JSON.stringify(list));
         }
-        if(!localStorage.getItem('uf25_campaigns')) {
-            const ads = [['굿모닝청소','청소','입주청소 20% 할인','전세 계약', 50000, 'https://via.placeholder.com/400x200?text=Ad+1'],['우리은행','금융','전세자금대출 최저','전세 계약', 100000, 'https://via.placeholder.com/400x200?text=Ad+2'],['현대해상','보험','보증금 반환보증','위험 감지', 80000, 'https://via.placeholder.com/400x200?text=Ad+3']];
-            const list = ads.map((d, i) => ({ id: 100+i, partner: d[0], category: d[1], title: d[2], trigger: d[3], budget: d[4], status: 'pending', img: d[5] }));
-            list.push({ id: 999, partner: '빠른이사(주)', category: '이삿짐', title: '포장이사 특가', trigger: '전세 계약', budget: 100000, status: 'active', imps:1200, clicks:45, img: '' });
-            localStorage.setItem('uf25_campaigns', JSON.stringify(list));
-        }
-        if(!localStorage.getItem('uf25_settlements')) {
-            const s = []; for(let i=0; i<30; i++) s.push({ id: i, date: `2023-12-${(i%30)+1}`, partner: `업체_${i}`, amount: (i+1)*100000, bank: `은행 ${i}00-xxx`, status: i<5?'pending':'completed' });
-            localStorage.setItem('uf25_settlements', JSON.stringify(s));
-        }
-        if(!localStorage.getItem('uf25_triggers')) {
-            const t = [
-                {n:'전/월세 계약 검토', i:'🏠'},
-                {n:'대출 한도 조회', i:'💸'},
-                {n:'이혼 소송 상담', i:'⚖️'},
-                {n:'교통사고 과실 분석', i:'🚗'}
-            ];
-            localStorage.setItem('uf25_triggers', JSON.stringify(t.map((x,i) => ({
-                id:`t${i}`, name:x.n, icon:x.i, count: Math.floor(Math.random()*5000), 
-                trend: Array.from({length: 7}, () => Math.floor(Math.random() * 200) + 50)
-            }))));
-        }
-        if(!localStorage.getItem('uf25_crm')) {
-            const l=[]; for(let i=0;i<10;i++) l.push({id:i, userId:`User_8${i}2${i}`, date:`2023-12-0${i+1}`, interest:'이사', status:'issued'});
-            localStorage.setItem('uf25_crm', JSON.stringify(l));
-        }
-        if(!localStorage.getItem('uf25_chats')) localStorage.setItem('uf25_chats', JSON.stringify([{ id: 'c1', partnerId: 'p_me', partnerName: '빠른이사(주)', messages: [{from:'admin', text:'승인되었습니다.', time:'10:00'}] }]));
-        if(!localStorage.getItem('uf25_charges')) localStorage.setItem('uf25_charges', JSON.stringify([]));
-        if(!localStorage.getItem('uf25_notis')) localStorage.setItem('uf25_notis', JSON.stringify([]));
-
-        if(!localStorage.getItem('uf25_proposals')) {
-            const props = [
-                { id: 1, partner: '마음치유 심리센터', desc: '이혼 소송 고객 대상 심리 상담 패키지 제휴', rate: 15, date: '2023-12-10', status: 'pending' },
-                { id: 2, partner: '굿모닝 렌트카', desc: '사고 대차 우선 배차 서비스 제휴', rate: 10, date: '2023-12-11', status: 'pending' }
-            ];
-            localStorage.setItem('uf25_proposals', JSON.stringify(props));
-        }
+        
+        this.cache.uf25_partners = JSON.parse(localStorage.getItem('uf25_partners') || '[]');
+        this.cache.uf25_campaigns = JSON.parse(localStorage.getItem('uf25_campaigns') || '[]');
+        this.cache.uf25_settlements = JSON.parse(localStorage.getItem('uf25_settlements') || '[]');
+        this.cache.uf25_proposals = JSON.parse(localStorage.getItem('uf25_proposals') || '[]');
+        this.cache.uf25_triggers = JSON.parse(localStorage.getItem('uf25_triggers') || '[]');
+        this.cache.uf25_crm = JSON.parse(localStorage.getItem('uf25_crm') || '[]');
+        this.cache.uf25_chats = JSON.parse(localStorage.getItem('uf25_chats') || '[]');
+        this.cache.uf25_charges = JSON.parse(localStorage.getItem('uf25_charges') || '[]');
+        this.cache.uf25_notis = JSON.parse(localStorage.getItem('uf25_notis') || '[]');
     },
-    get(k) { return JSON.parse(localStorage.getItem(k)); },
-    set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+    
+    getFromLocalStorage(key) {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+    },
+    
+    get(k) { 
+        return this.cache[k] || this.getFromLocalStorage(k) || []; 
+    },
+    
+    async set(k, v) { 
+        this.cache[k] = v;
+        localStorage.setItem(k, JSON.stringify(v));
+        // TODO: Supabase에도 저장 로직 추가
+    }
 };
 
 const app = {
@@ -620,8 +689,9 @@ const app = {
     liveInterval: null,
     charts: {},
 
-    init() { 
-        DB.init(); 
+    async init() { 
+        console.log('🚀 Initializing app...');
+        await DB.init(); 
         this.checkLogin();
     },
     
