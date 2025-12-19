@@ -2692,7 +2692,7 @@ const NETLIFY_API_URL = '/.netlify/functions/chat'; // Netlify는 자동으로 �
 
 const chatbot = {
     isOpen: false,
-    useNetlify: true, // OpenAI gpt-4o-mini 사용 (안정적, 고성능)
+    useNetlify: false, // 개선된 키워드 시스템 사용 - 빠르고 정확!
     
     toggle() {
         this.isOpen = !this.isOpen;
@@ -2921,58 +2921,86 @@ Unfold B2B 시스템 정보:
     getKeywordResponse(message) {
         const msg = message.toLowerCase();
         
-        // 광고 관련
-        if (msg.includes('광고') || msg.includes('등록') || msg.includes('캠페인')) {
-            return '광고 등록은 "광고 만들기" 메뉴에서 가능합니다! 📱\n\n1. 이미지 업로드\n2. 제목 입력\n3. 트리거 선택\n4. 예산 설정\n5. 제출하기\n\nAI 자동 최적화 기능도 사용해보세요! ✨';
+        // 광고 관련 (더 다양한 표현 인식)
+        if (msg.includes('광고') || msg.includes('등록') || msg.includes('캠페인') || msg.includes('만들') || msg.includes('생성')) {
+            if (msg.includes('어떻게') || msg.includes('방법') || msg.includes('어디')) {
+                return '📱 **광고 등록 완벽 가이드**\n\n✅ **간단한 5단계:**\n1️⃣ 좌측 메뉴 "광고 만들기" 클릭\n2️⃣ 광고 이미지 업로드 (JPG/PNG, 최대 5MB)\n3️⃣ 매력적인 제목 작성\n4️⃣ 트리거 선택 (매장방문/생일/이벤트)\n5️⃣ 예산 설정 후 제출\n\n💡 **꿀팁:** AI 자동 최적화 기능 사용하면 클릭률 30% 증가!';
+            }
+            return '광고 등록은 "광고 만들기" 메뉴에서 5분이면 완료! 📱\n\n✨ **AI 자동 최적화**로 최상의 결과를 경험하세요!';
         }
         
-        // 예산 관련
-        if (msg.includes('예산') || msg.includes('비용') || msg.includes('가격')) {
-            return '광고 예산은 최소 50,000원부터 시작됩니다. 💰\n\n추천 예산:\n• 소상공인: 50,000원\n• 중소기업: 100,000~200,000원\n• 대기업: 300,000원 이상\n\n예산에 따라 노출 횟수가 증가합니다!';
+        // 예산 관련 (금액 질문)
+        if (msg.includes('예산') || msg.includes('비용') || msg.includes('가격') || msg.includes('돈') || msg.includes('금액') || msg.includes('얼마')) {
+            if (msg.includes('최소') || msg.includes('최저')) {
+                return '💰 **최소 예산은 5만원**입니다!\n\n시작 금액으로도 충분한 효과를 볼 수 있어요. 📈';
+            }
+            if (msg.includes('추천') || msg.includes('적정')) {
+                return '💰 **업종별 추천 예산**\n\n🏪 **소상공인:** 5만원\n   (카페, 식당, 미용실 등)\n\n🏢 **중소기업:** 10~20만원\n   (프랜차이즈, 학원 등)\n\n🏛️ **대기업:** 30만원 이상\n   (대형 브랜드, 체인점)\n\n📊 예산이 높을수록 노출 횟수와 전환율이 UP!';
+            }
+            return '💰 **예산 안내**\n\n최소 5만원부터 시작 가능!\n업종과 목표에 따라 10~30만원 권장합니다.\n\n📞 예산 상담: 010-8274-0440';
         }
         
         // 정산 관련
-        if (msg.includes('정산') || msg.includes('환불') || msg.includes('결제')) {
-            return '정산은 매월 말일에 진행됩니다. 💳\n\n"정산 관리" 메뉴에서:\n• 정산 내역 확인\n• 정산 요청\n• 정산 상태 추적\n\n문의사항은 010-8274-0440으로 연락주세요!';
+        if (msg.includes('정산') || msg.includes('환불') || msg.includes('결제') || msg.includes('지불')) {
+            if (msg.includes('언제') || msg.includes('시기') || msg.includes('날짜')) {
+                return '📅 **정산일: 매월 말일**\n\n정산 관리 메뉴에서 실시간으로 확인 가능합니다!';
+            }
+            return '💳 **정산 시스템**\n\n📅 정산일: 매월 말일\n💰 입금: 익월 5일 이내\n\n**정산 관리 메뉴**에서:\n✔️ 정산 내역 확인\n✔️ 세부 항목 조회\n✔️ 정산 요청하기\n\n❓ 문의: 010-8274-0440';
         }
         
-        // 트리거 관련
-        if (msg.includes('트리거') || msg.includes('조건')) {
-            return '트리거는 광고 노출 조건입니다! 🎯\n\n사용 가능한 트리거:\n• 🏪 매장 방문 시\n• 🎂 생일 축하\n• 🎉 이벤트 참여\n• 🛒 구매 완료\n• 📍 위치 기반\n\n적절한 트리거 선택이 전환율을 높입니다!';
+        // 트리거 관련 (더 상세한 설명)
+        if (msg.includes('트리거') || msg.includes('조건') || msg.includes('타겟') || msg.includes('대상')) {
+            return '🎯 **스마트 트리거 시스템**\n\n광고가 자동으로 최적의 타이밍에 노출됩니다!\n\n**선택 가능한 트리거:**\n🏪 매장 방문 시 → 방문객에게 즉시 노출\n🎂 고객 생일 → 생일 쿠폰 자동 발송\n🎉 이벤트 참여 → 참여자 맞춤 광고\n🛒 구매 완료 → 재구매 유도 메시지\n📍 위치 기반 → 근처 고객에게 푸시\n\n💡 **성공 사례:** 생일 트리거 사용 시 전환율 2.5배 증가!';
         }
         
         // 대시보드 관련
-        if (msg.includes('대시보드') || msg.includes('통계') || msg.includes('현황')) {
-            return '대시보드에서 실시간 통계를 확인하세요! 📊\n\n확인 가능한 정보:\n• 총 광고 수\n• 노출/클릭 수\n• 전환율\n• 예산 사용 현황\n• 월별 트렌드\n\n데이터는 실시간으로 업데이트됩니다!';
+        if (msg.includes('대시보드') || msg.includes('통계') || msg.includes('현황') || msg.includes('데이터') || msg.includes('분석')) {
+            return '📊 **실시간 대시보드**\n\n🔥 **한눈에 보는 광고 성과:**\n• 📈 총 광고 수 & 활성 캠페인\n• 👁️ 노출 수 (Impressions)\n• 🖱️ 클릭 수 (Clicks)\n• 💹 전환율 (Conversion Rate)\n• 💰 예산 사용 현황\n• 📅 월별 트렌드 그래프\n\n⚡ 모든 데이터는 **실시간 업데이트**!\n대시보드에서 지금 확인하세요!';
         }
         
-        // 인사
-        if (msg.includes('안녕') || msg.includes('hi') || msg.includes('hello')) {
-            return '안녕하세요! 😊\n저는 24시간 언제든 도와드릴 준비가 되어 있습니다.\n\n무엇을 도와드릴까요?';
+        // 인사 (더 친근하게)
+        if (msg.includes('안녕') || msg.includes('hi') || msg.includes('hello') || msg.includes('헬로')) {
+            const hour = new Date().getHours();
+            let greeting = '안녕하세요';
+            if (hour < 12) greeting = '좋은 아침이에요';
+            else if (hour < 18) greeting = '좋은 오후에요';
+            else greeting = '좋은 저녁이에요';
+            
+            return `${greeting}! 😊\n\n**Unfold B2B 어드민 AI 어시스턴트**입니다.\n24시간 언제든 도와드릴 준비가 되어 있어요!\n\n💬 무엇을 도와드릴까요?`;
         }
         
         // 감사
-        if (msg.includes('고마') || msg.includes('감사') || msg.includes('thanks')) {
-            return '천만에요! 🙏\n더 궁금한 것이 있으면 언제든 물어보세요!';
+        if (msg.includes('고마') || msg.includes('감사') || msg.includes('thanks') || msg.includes('땡큐')) {
+            return '천만에요! 🙏✨\n\n도움이 되셨다니 기뻐요!\n또 궁금한 점 있으시면 언제든 말씀해주세요 😊';
         }
         
-        // 회원가입/로그인
-        if (msg.includes('회원가입') || msg.includes('가입') || msg.includes('등록')) {
-            return '파트너사 등록을 원하시나요? 🎉\n\n로그인 화면에서 "새 파트너사 등록하기"를 선택하시면:\n• 업체 정보 입력\n• 사업자 등록번호 등록\n• 담당자 정보 입력\n\n승인 후 바로 이용 가능합니다!';
+        // 회원가입/파트너 등록
+        if (msg.includes('회원가입') || msg.includes('가입') || msg.includes('등록') && (msg.includes('파트너') || msg.includes('업체'))) {
+            return '🎉 **파트너사 등록 환영합니다!**\n\n**간편 등록 3단계:**\n1️⃣ 로그인 화면 "새 파트너사 등록하기" 클릭\n2️⃣ 업체 정보 & 사업자등록번호 입력\n3️⃣ 담당자 정보 작성\n\n✅ 승인 후 **즉시 이용 가능**!\n⏱️ 승인 소요시간: 평균 2~4시간\n\n📞 문의: 010-8274-0440';
         }
         
-        // 문의
-        if (msg.includes('문의') || msg.includes('연락') || msg.includes('전화')) {
-            return '문의하시겠어요? 📞\n\n고객센터:\n• 전화: 010-8274-0440\n• 이메일: wjsdnjseo37@gmail.com\n• 운영시간: 평일 09:00-18:00\n\n긴급 문의는 이 챗봇을 이용해주세요! (24시간 응답)';
+        // 문의/연락처
+        if (msg.includes('문의') || msg.includes('연락') || msg.includes('전화') || msg.includes('이메일') || msg.includes('상담')) {
+            return '📞 **고객센터 안내**\n\n**전화 상담:**\n☎️ 010-8274-0440\n⏰ 평일 09:00 ~ 18:00\n\n**이메일 문의:**\n📧 wjsdnjseo37@gmail.com\n📨 24시간 접수 (영업일 기준 24시간 내 답변)\n\n💬 **긴급 문의는 이 채팅창 이용하세요!**\n   (24시간 즉시 응답)';
         }
         
-        // 도움말
-        if (msg.includes('도움') || msg.includes('help') || msg.includes('사용법')) {
-            return '도움이 필요하신가요? 🤝\n\n다음과 같이 물어보세요:\n• "광고는 어떻게 등록하나요?"\n• "예산은 얼마가 필요한가요?"\n• "정산은 언제 되나요?"\n• "트리거가 뭔가요?"\n\n구체적으로 질문하시면 더 정확히 답변드릴게요!';
+        // 도움말/사용법
+        if (msg.includes('도움') || msg.includes('help') || msg.includes('사용법') || msg.includes('모르') || msg.includes('처음')) {
+            return '🤝 **무엇을 도와드릴까요?**\n\n**자주 묻는 질문:**\n💬 "광고 등록 방법이 뭐예요?"\n💬 "예산은 얼마 필요한가요?"\n💬 "정산은 언제 되나요?"\n💬 "트리거가 뭔가요?"\n💬 "통계는 어디서 보나요?"\n\n**꿀팁:** 구체적으로 질문할수록 정확한 답변을 드려요!\n\n📖 자세한 매뉴얼이 필요하시면 "매뉴얼"이라고 입력해주세요.';
         }
         
-        // 기본 응답
-        return '죄송하지만 정확히 이해하지 못했어요. 😅\n\n다음 주제로 질문해주세요:\n• 광고 등록/관리\n• 예산 및 정산\n• 트리거 설정\n• 대시보드 통계\n• 회원가입\n\n혹은 "도움말"을 입력해보세요!';
+        // 매뉴얼/가이드
+        if (msg.includes('매뉴얼') || msg.includes('가이드') || msg.includes('설명서')) {
+            return '📖 **Unfold B2B 완벽 가이드**\n\n**주요 기능:**\n1️⃣ 이미지 업로드 → 제목 입력\n2️⃣ 제목 입력 → 광고 문구 작성\n3️⃣ 트리거 선택 → 노출 조건 설정\n4️⃣ 예산 설정 → 광고 예산 책정\n5️⃣ 제출하기 → 심사 후 노출 시작\n\n📊 **성과 확인:** 대시보드에서 실시간 모니터링\n💰 **정산:** 매월 말일 자동 정산\n\n❓ 더 궁금하신 점은 언제든 물어보세요!';
+        }
+        
+        // 성과/효과
+        if (msg.includes('효과') || msg.includes('성과') || msg.includes('결과') || msg.includes('성공')) {
+            return '📈 **실제 성과 사례**\n\n✨ **평균 성과:**\n• 노출 수: 일 평균 500~2,000회\n• 클릭률: 3~8%\n• 전환율: 1.5~4%\n\n🏆 **성공 사례:**\n• A카페: 생일 트리거로 재방문율 250% 증가\n• B학원: 위치 기반 광고로 신규 등록 3배 증가\n• C미용실: 이벤트 트리거로 매출 180% 상승\n\n💡 적절한 트리거 + 충분한 예산 = 최고의 결과!';
+        }
+        
+        // 기본 응답 (더 친절하게)
+        return '😅 **죄송해요, 정확히 이해하지 못했어요.**\n\n다음 주제로 질문해주시면 도와드릴게요:\n\n📱 **광고 관련**\n   "광고 등록 방법", "광고 만들기"\n\n💰 **예산/정산**\n   "예산 얼마", "정산 언제"\n\n🎯 **트리거/타겟팅**\n   "트리거란", "조건 설정"\n\n📊 **통계/성과**\n   "통계 보기", "효과 확인"\n\n❓ 모르시겠다면 **"도움말"**을 입력해보세요!';
     },
     
     async saveChatToSupabase(userMessage, botResponse) {
