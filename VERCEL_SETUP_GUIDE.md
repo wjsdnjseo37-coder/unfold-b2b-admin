@@ -18,7 +18,7 @@
    - "Environment Variables" 섹션에서:
      ```
      Name: GEMINI_API_KEY
-     Value: AIzaSyAINbNW0iUkaGbpV9PWN-SSflJ281C-DH0
+     Value: YOUR_GEMINI_API_KEY
      ```
    - "Add" 클릭
 

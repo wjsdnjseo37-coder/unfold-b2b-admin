@@ -35,7 +35,7 @@
 4. 입력:
    ```
    Key: GEMINI_API_KEY
-   Value: AIzaSyAINbNW0iUkaGbpV9PWN-SSflJ281C-DH0
+   Value: YOUR_GEMINI_API_KEY
    ```
 5. **"Create variable"** 클릭
 6. 상단 **"Deploys"** 탭 → **"Trigger deploy" → "Deploy site"** (재배포)
